@@ -25,3 +25,5 @@ The application follows a modular, object-oriented design that separates concern
 4. **Flexibility**: Changes in one class (e.g., database interactions) do not affect others, making the codebase more adaptable to future modifications.
 
 This design does not inherently add security but provides a structured framework within which secure coding practices can be effectively implemented.
+
+![design drawing](assets/UserService.png)
