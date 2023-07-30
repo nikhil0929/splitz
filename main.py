@@ -1,9 +1,10 @@
 import os
 from src.auth.verification import Authenticator
 from dotenv import load_dotenv
+from fastapi import FastAPI
 
 from db.database import Database
-from src.api.user import services, schemas
+from src.api.user import services, controller
 
 
 # from fastapi import FastAPI, Depends
@@ -23,7 +24,7 @@ db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
 db_name = os.getenv("DB_NAME")
 
-# app = FastAPI()
+app = FastAPI()
 
 
 def main():
@@ -56,11 +57,10 @@ def main():
     # usr = user_service.create_user(new_user)
     # print(usr)
 
-
-    # app.include_router(
-    #     user_controller.router,
-    #     dependencies=[Depends(splitz_db.get_db), Depends(get_authenticator)],
-    # )
+    user_controller = controller.UserController(user_service)
+    app.include_router(
+        user_controller.router
+    )
 
 
 main()
