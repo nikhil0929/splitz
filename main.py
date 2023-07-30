@@ -44,13 +44,17 @@ def main():
     splitz_db.run_migrations()
 
     user_service = services.UserService(splitz_db, auth)
-    new_user = schemas.UserCreate(
-        name="John Doe",
-        phone_number="+14095059384",
-    )
-    print("NAME: ", new_user.name)
-    user_service.create_user(new_user)
+    # new_user = schemas.UserCreate(
+    #     # name="John Doe",
+    #     phone_number="+14094058184",
+    #     email="jdoe@gmail.com"
+    # )
 
+    # usr = user_service.get_user(8)
+    # print("USER: ", usr)
+    # print("NAME: ", new_user.name)
+    # usr = user_service.create_user(new_user)
+    # print(usr)
 
 
     # app.include_router(

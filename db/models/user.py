@@ -13,10 +13,10 @@ class User(Base):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[Optional[str]] = mapped_column(String(50))
-    phone_number: Mapped[str] = mapped_column(String(30))
+    phone_number: Mapped[str] = mapped_column(String(30), unique=True)
     email: Mapped[Optional[str]]
     # addresses: Mapped[List["Address"]] = relationship(
     #     back_populates="users", cascade="all, delete-orphan"
     # )
     def __repr__(self) -> str:
-        return f"User(id={self.id!r}, name={self.name!r}, phone-number={self.phone_number!r})"
+        return f"User(id={self.id!r}, name={self.name!r}, phone-number={self.phone_number!r}, email={self.email!r} )"

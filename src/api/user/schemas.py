@@ -6,6 +6,7 @@ from pydantic import BaseModel
 class UserBase(BaseModel):
     name: str | None = None
     phone_number: str
+    email: str | None = None
     # approved: bool = False
 
 
