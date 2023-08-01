@@ -1,12 +1,14 @@
 from pydantic import BaseModel
+from typing import Optional
+
 
 
 
 # Base model inherent in all classes
 class UserBase(BaseModel):
-    name: str | None = None
+    name: Optional[str] = None
     phone_number: str
-    email: str | None = None
+    email: Optional[str] = None
     # approved: bool = False
 
 

@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 
 from db.database import Database
-from src.api.user import services, controller
+from src.api.user import services, controller, schemas
 
 
 # from fastapi import FastAPI, Depends
@@ -45,17 +45,18 @@ def main():
     splitz_db.run_migrations()
 
     user_service = services.UserService(splitz_db, auth)
-    # new_user = schemas.UserCreate(
-    #     # name="John Doe",
-    #     phone_number="+14094058184",
-    #     email="jdoe@gmail.com"
-    # )
+    new_user = schemas.UserCreate(
+        # name="John Doe",
+        phone_number=phone_number,
+    )
 
     # usr = user_service.get_user(8)
     # print("USER: ", usr)
     # print("NAME: ", new_user.name)
-    # usr = user_service.create_user(new_user)
-    # print(usr)
+    # user_service.intialize_verification(phone_number)
+    # user_input = input("Enter verification code: ")
+    # isValid, usr = user_service.check_verification(phone_number, user_input)
+    # print("Is Valid: ", isValid)
 
     user_controller = controller.UserController(user_service)
     app.include_router(

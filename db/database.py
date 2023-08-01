@@ -14,7 +14,7 @@ class Database:
         self.database_url = (
             f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
         )
-        self.engine = create_engine(self.database_url, echo=True)
+        self.engine = create_engine(self.database_url)
 
     def get_engine(self):
         return self.engine

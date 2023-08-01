@@ -21,7 +21,7 @@ class UserController:
         # intializes the user verification by sending an OTP to the provided phone number
         @self.router.post("/initialize-verification")
         def initialize_user_verification(user: schemas.UserCreate):
-            self.service.intialize_verification(user)
+            self.service.intialize_verification(user.phone_number)
             return Response(content="Verification code has been sent", status_code=200)
 
 
@@ -29,7 +29,8 @@ class UserController:
         #   - if the user does not exist -> creates a new user in the database
         @self.router.post("/complete-verification", response_model=schemas.User)
         def complete_user_verification(user: schemas.UserLogin):
-            is_verified, usr = self.service.check_verification(user=user)
+            print("PHONE NUMBER AND OTP: ", user.phone_number, user.otp)
+            is_verified, usr = self.service.check_verification(user.phone_number, user.otp)
             if not is_verified:
                 raise HTTPException(status_code=400, detail="OTP incorrect")
             return usr
@@ -51,6 +52,7 @@ class UserController:
 
         @self.router.get("/{phone_number}", response_model=schemas.User)
         def read_user(phone_number: str):
+            print(phone_number)
             db_user = self.service.get_user_by_phone_number(phone_number)
             if db_user is None:
                 raise HTTPException(status_code=404, detail="User not found")

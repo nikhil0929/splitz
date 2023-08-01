@@ -54,20 +54,20 @@ class UserService:
 
 
     # Initialize the sms verification for the given user (phone number)
-    def intialize_verification(self, user: schemas.UserCreate):
-        user_phone_number = user.phone_number
-        self.authenticator.create_verification(user_phone_number)
+    def intialize_verification(self, phone_number: str):
+        self.authenticator.create_verification(phone_number)
         logging.info("user.services.intialize_verification(): Successfully created twilio verification")
 
 
-    def check_verification(self, user: schemas.UserLogin) -> Tuple[bool, User]:
-        status = self.authenticator.check_verification(user.phone_number, user.otp)
+    def check_verification(self, phone_number: str, otp: str) -> Tuple[bool, User]:
+        # print("USER LOGIN: ", phone_number, otp)
+        status = self.authenticator.check_verification(phone_number, otp)
         if status != "approved":
             logging.error("user.services.check_verification(): User could not be approved (incorrect OTP)")
             return False, None
-        db_user = self.get_user_by_phone_number(user.phone_number)
+        db_user = self.get_user_by_phone_number(phone_number)
         if not db_user:
-            db_user = self.create_user(user)
+            db_user = self.create_user(schemas.UserCreate(phone_number=phone_number))
         logging.info("user.services.check_verification(): User logged in successfully")
         return status == "approved", db_user
 
