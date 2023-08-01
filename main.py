@@ -28,7 +28,6 @@ app = FastAPI()
 
 
 def main():
-    phone_number = "+14085059394"
     auth = Authenticator(account_sid, auth_token, service_sid)
 
     # auth.create_verification(phone_number)
@@ -45,10 +44,10 @@ def main():
     splitz_db.run_migrations()
 
     user_service = services.UserService(splitz_db, auth)
-    new_user = schemas.UserCreate(
-        # name="John Doe",
-        phone_number=phone_number,
-    )
+    # new_user = schemas.UserCreate(
+    #     # name="John Doe",
+    #     phone_number=phone_number,
+    # )
 
     # usr = user_service.get_user(8)
     # print("USER: ", usr)
