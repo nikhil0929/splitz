@@ -6,9 +6,7 @@ from typing import Optional
 
 # Base model inherent in all classes
 class UserBase(BaseModel):
-    name: Optional[str] = None
     phone_number: str
-    email: Optional[str] = None
     # approved: bool = False
 
 
@@ -16,19 +14,22 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     pass
 
-
 class UserLogin(UserBase):
     otp: str
 
 
 # For 'updating' (PUT) a user
-class UserUpdate(UserBase):
-    pass
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
 
 
 # For 'reading' (GET) a user
 class User(UserBase):
     id: int
+
+    name: Optional[str] = None
+    email: Optional[str] = None
 
     class Config:
         from_attributes = True

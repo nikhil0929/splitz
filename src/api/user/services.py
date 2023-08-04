@@ -94,3 +94,24 @@ class UserService:
             except UniqueViolation:
                 logging.error("user.services.get_user(): Phone number already exists; Cannot create user")
                 return None
+
+    # Update a user in the database using the 'UserUpdate' schema. 
+    def update_user(self, id: int, email: str = None, name: str = None) -> User:
+        with Session(self.db_engine) as db:
+            db_user = self.get_user(id)
+            if not db_user:
+                return None
+            if email:
+                db_user.email = email
+            if name:
+                db_user.name = name
+            try:
+                db.add(db_user)
+                db.commit()
+                logging.info("user.services.update_user(): User updated sucessfully")
+                # print("DB USER: ", db_user)
+                db.refresh(db_user)
+                return db_user
+            except:
+                logging.error("user.services.update_user(): User update failed")
+                return None

@@ -29,7 +29,7 @@ class UserController:
         #   - if the user does not exist -> creates a new user in the database
         @self.router.post("/complete-verification", response_model=schemas.User)
         def complete_user_verification(user: schemas.UserLogin):
-            print("PHONE NUMBER AND OTP: ", user.phone_number, user.otp)
+            # print("PHONE NUMBER AND OTP: ", user.phone_number, user.otp)
             is_verified, usr = self.service.check_verification(user.phone_number, user.otp)
             if not is_verified:
                 raise HTTPException(status_code=400, detail="OTP incorrect")
@@ -43,7 +43,7 @@ class UserController:
 
 
         @self.router.get("/{user_id}", response_model=schemas.User)
-        def read_user(user_id: int):
+        def read_user_by_id(user_id: int):
             db_user = self.service.get_user(user_id)
             if db_user is None:
                 raise HTTPException(status_code=404, detail="User not found")
@@ -51,9 +51,16 @@ class UserController:
         
 
         @self.router.get("/{phone_number}", response_model=schemas.User)
-        def read_user(phone_number: str):
+        def read_user_by_phone(phone_number: str):
             print(phone_number)
             db_user = self.service.get_user_by_phone_number(phone_number)
+            if db_user is None:
+                raise HTTPException(status_code=404, detail="User not found")
+            return db_user
+
+        @self.router.put("/{user_id}/update", response_model=schemas.User)
+        def update_user(user_id: int, user: schemas.UserUpdate):
+            db_user = self.service.update_user(user_id, user.email, user.name)
             if db_user is None:
                 raise HTTPException(status_code=404, detail="User not found")
             return db_user
