@@ -9,9 +9,10 @@ from psycopg2.errors import UniqueViolation
 import logging
 
 class UserService:
-    def __init__(self, db_engine, authenticator):
+    def __init__(self, db_engine, twilio_authenticator, jwt_authenticator):
         self.db_engine = db_engine.get_engine()
-        self.authenticator = authenticator
+        self.twilio_authenticator = twilio_authenticator
+        self.jwt_authenticator = jwt_authenticator
 
     # Read a single user by ID
     def get_user(self, user_id: int) -> User:
@@ -38,8 +39,6 @@ class UserService:
                 logging.error("user.services.get_user_by_phone_number(): Unable to locate record with given parameters")
 
 
-
-
     # Read multiple users from the database with a given offset and limit
     def get_users(self, skip: int = 0, limit: int = 100) -> list[User]:
         with Session(self.db_engine) as db:
@@ -55,21 +54,39 @@ class UserService:
 
     # Initialize the sms verification for the given user (phone number)
     def intialize_verification(self, phone_number: str):
-        self.authenticator.create_verification(phone_number)
+        self.twilio_authenticator.create_verification(phone_number)
         logging.info("user.services.intialize_verification(): Successfully created twilio verification")
 
 
-    def check_verification(self, phone_number: str, otp: str) -> Tuple[bool, User]:
-        # print("USER LOGIN: ", phone_number, otp)
-        status = self.authenticator.check_verification(phone_number, otp)
-        if status != "approved":
-            logging.error("user.services.check_verification(): User could not be approved (incorrect OTP)")
-            return False, None
+    # parent function for check_verification and create_user. Creates a JWT to send back to client
+    def verify(self, phone_number, otp: str) -> str:
+        is_verified = self.check_verification(phone_number, otp)
+        if not is_verified:
+            return None
         db_user = self.get_user_by_phone_number(phone_number)
         if not db_user:
             db_user = self.create_user(schemas.UserCreate(phone_number=phone_number))
-        logging.info("user.services.check_verification(): User logged in successfully")
-        return status == "approved", db_user
+
+        jwt_user = {
+            "id": db_user.id,
+            "phone_number": db_user.phone_number,
+        }
+
+        jwt = self.jwt_authenticator.create_access_token({"usr": jwt_user})
+        logging.info("user.services.get_jwt(): Successfully created JWT")
+        return jwt
+
+
+    def check_verification(self, phone_number: str, otp: str) -> bool:
+        # print("USER LOGIN: ", phone_number, otp)
+        status = self.twilio_authenticator.check_verification(phone_number, otp)
+        if status != "approved":
+            logging.error("user.services.check_verification(): User could not be approved (incorrect OTP)")
+            return False
+        else:
+            logging.info("user.services.check_verification(): User OTP successful")
+            return True
+        
 
 
     # Create a new user in the database using the 'UserCreate' schema. #
