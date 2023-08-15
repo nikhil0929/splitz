@@ -1,10 +1,15 @@
 import os
-from src.auth.verification import Authenticator
+from src.auth.sms_verification import TwilioAuthenticator
+from src.auth.jwt_auth import JWTAuthenticator
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.security import OAuth2PasswordBearer
 
 from db.database import Database
-from src.api.user import services, controller, schemas
+from src.api.user import services, controller
+from src.api.middleware.middleware import JWTMiddleware
+
+
 
 
 # from fastapi import FastAPI, Depends
@@ -24,26 +29,32 @@ db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
 db_name = os.getenv("DB_NAME")
 
+jwt_secret = os.getenv("SECRET_KEY")
+jwt_algorithm = "HS256"
+
 app = FastAPI()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 def main():
-    auth = Authenticator(account_sid, auth_token, service_sid)
+    twilio_auth = TwilioAuthenticator(account_sid, auth_token, service_sid)
+    jwt_auth = JWTAuthenticator(jwt_secret, jwt_algorithm)
 
-    # auth.create_verification(phone_number)
+    # twilio_auth.create_verification(phone_number)
     # # # print(os.getenv("TEST_TWILIO_ACCOUNT_SID"))
 
     # user_input = input("Enter verification code: ")
-    # auth.check_verification(phone_number, user_input)
+    # twilio_auth.check_verification(phone_number, user_input)
 
     # def get_authenticator():
-    #     return auth
+    #     return twilio_auth
 
     splitz_db = Database(db_user, db_password, db_host, db_port, db_name)
     # print("DB URL: ", splitz_db.database_url)
     splitz_db.run_migrations()
 
-    user_service = services.UserService(splitz_db, auth)
+    user_service = services.UserService(splitz_db, twilio_auth, jwt_auth)
     # new_user = schemas.UserCreate(
     #     # name="John Doe",
     #     phone_number=phone_number,
@@ -61,6 +72,7 @@ def main():
     app.include_router(
         user_controller.router
     )
+    app.add_middleware(JWTMiddleware, jwt_authenticator=jwt_auth)
 
 
 main()

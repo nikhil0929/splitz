@@ -10,6 +10,13 @@ There is no Web API component built out yet, it is just running locally from my 
 uvicorn main:app --reload
 ```
 
+### August 6th, 2023
+
+**Some things that I am considering:**
+
+So far I have developed the backend with user authentication from Twilio using their phone-number. But now i am trying to implement security with FastAPI's built in security API using OAuth2. But FastApi's security API automatically comes pre-built to work with 2 different Schemas:
+- Using built in username and password to authenticate (OAuth2PasswordBearer)
+
 ## **Application Architecture Design:**
 
 The application follows a modular, object-oriented design that separates concerns into distinct classes, each with their own responsibilities. This design includes a `Database` class for database operations, a `UserService` class for user-related business logic, and a `UserController` class for handling HTTP requests and responses.
@@ -27,3 +34,8 @@ The application follows a modular, object-oriented design that separates concern
 This design does not inherently add security but provides a structured framework within which secure coding practices can be effectively implemented.
 
 ![design drawing](assets/UserService.png)
+
+
+## Next Steps
+
+Do what i did in Scaleable software architectures class. First, create a way to upload images sent from the clients side. Then the backend takes that image and puts it into an s3 bucket with a UUID as its folder name. This folder on s3 represents the GROUP UUID to which all these uploaded receipt images belong. Anyone that has this UUID in their "groups" field of their database record, can access all the images within subdirectory on s3. Maybe even add a list of all Group UUID's a User is in. 

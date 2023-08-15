@@ -4,7 +4,7 @@ from twilio.rest import Client
 
 
 ## Can i use apache kafka with this? Once you create the verification, the application needs to wait
-class Authenticator:
+class TwilioAuthenticator:
     def __init__(self, account_sid: str, auth_token: str, service_sid: str):
         self.client = Client(account_sid, auth_token)
         self.service_sid = service_sid
