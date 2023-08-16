@@ -39,3 +39,14 @@ This design does not inherently add security but provides a structured framework
 ## Next Steps
 
 Do what i did in Scaleable software architectures class. First, create a way to upload images sent from the clients side. Then the backend takes that image and puts it into an s3 bucket with a UUID as its folder name. This folder on s3 represents the GROUP UUID to which all these uploaded receipt images belong. Anyone that has this UUID in their "groups" field of their database record, can access all the images within subdirectory on s3. Maybe even add a list of all Group UUID's a User is in. 
+
+a `room` is going to represented as a UUID as the primary key. the User and Rooms table will be a  `many-to-many` relationship. For this we will be using an *association table*:
+
+`UserRoom Association Table`:
+`   user_id`: Foreign Key referencing Users
+`    room_id`: Foreign Key referencing Rooms
+
+`Rooms Table`:
+`   room_id:`Primary key (UUID)
+`   room_name`: Name of the room
+`   room_password`: Password for the room (hashed + salt)

@@ -1,13 +1,14 @@
-# from typing import List
-from typing import Optional
+from typing import Optional, List, TYPE_CHECKING
 # from sqlalchemy import ForeignKey
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from ..base_model import Base
-# from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship
+from .room import user_room_association
 
-
+if TYPE_CHECKING:
+    from .room import Room  # Import Room only for type checking
 
 class User(Base):
     __tablename__ = "users"
@@ -18,5 +19,12 @@ class User(Base):
     # addresses: Mapped[List["Address"]] = relationship(
     #     back_populates="users", cascade="all, delete-orphan"
     # )
+
+    # Establish the many-to-many relationship with Room
+    rooms: Mapped[List["Room"]] = relationship(
+        "Room",
+        secondary=user_room_association,
+        back_populates="users"
+    )
     def __repr__(self) -> str:
         return f"User(id={self.id!r}, name={self.name!r}, phone-number={self.phone_number!r}, email={self.email!r} )"

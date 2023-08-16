@@ -6,7 +6,9 @@ from fastapi import FastAPI
 from fastapi.security import OAuth2PasswordBearer
 
 from db.database import Database
-from src.api.user import services, controller
+from src.api.user.services import UserService
+from src.api.user.controller import UserController
+from src.api.room.services import RoomService
 from src.api.middleware.middleware import JWTMiddleware
 
 
@@ -54,7 +56,17 @@ def main():
     # print("DB URL: ", splitz_db.database_url)
     splitz_db.run_migrations()
 
-    user_service = services.UserService(splitz_db, twilio_auth, jwt_auth)
+    user_service = UserService(splitz_db, twilio_auth, jwt_auth)
+    room_service = RoomService(splitz_db)
+
+    # room_service.create_room("Test Room", "password", 1)
+    
+
+    # is_joined = room_service.join_room("UQaFrn", "password", 2)
+    # if is_joined:
+    #     print("Room joined successfully")
+    #     rooms = room_service.get_rooms_by_user_id(2)
+    #     print(rooms)
     # new_user = schemas.UserCreate(
     #     # name="John Doe",
     #     phone_number=phone_number,
@@ -68,7 +80,7 @@ def main():
     # isValid, usr = user_service.check_verification(phone_number, user_input)
     # print("Is Valid: ", isValid)
 
-    user_controller = controller.UserController(user_service)
+    user_controller = UserController(user_service)
     app.include_router(
         user_controller.router
     )
