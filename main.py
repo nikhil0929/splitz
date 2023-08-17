@@ -2,7 +2,7 @@ import os
 from src.auth.sms_verification import TwilioAuthenticator
 from src.auth.jwt_auth import JWTAuthenticator
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile
 from fastapi.security import OAuth2PasswordBearer
 
 from db.database import Database
@@ -10,6 +10,10 @@ from src.api.user.services import UserService
 from src.api.user.controller import UserController
 from src.api.room.services import RoomService
 from src.api.middleware.middleware import JWTMiddleware
+
+import imageio as iio
+import io
+
 
 
 
@@ -34,6 +38,10 @@ db_name = os.getenv("DB_NAME")
 jwt_secret = os.getenv("SECRET_KEY")
 jwt_algorithm = "HS256"
 
+s3_access_key = os.getenv("S3_ACCESS_KEY")
+s3_secret_key = os.getenv("S3_SECRET_KEY")
+bucket_name = os.getenv("BUCKET_NAME")
+
 app = FastAPI()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -57,9 +65,30 @@ def main():
     splitz_db.run_migrations()
 
     user_service = UserService(splitz_db, twilio_auth, jwt_auth)
-    room_service = RoomService(splitz_db)
+    room_service = RoomService(splitz_db, s3_access_key, s3_secret_key, bucket_name)
+
+    file_paths = room_service.download_receipts_from_s3_room("NWBAQ3")
+    print(file_paths)
 
     # room_service.create_room("Test Room", "password", 1)
+
+    # Read the image as bytes
+    # with open("./assets/banana.jpg", "rb") as image_file:
+    #     image_bytes = image_file.read()
+
+    # # Create a file-like object using io.BytesIO
+    # img = io.BytesIO(image_bytes)
+
+    # class myFile:
+    #     def __init__(self) -> None:
+    #         self.filename = "banana.jpg"
+    #         self.file = img
+    #         self.content_type = "image/jpeg"
+
+    # did_add = room_service.add_receipt_to_s3_room("NWBAQ3", myFile())
+
+    # if did_add:
+    #     print("Receipt added to room successfully")
     
 
     # is_joined = room_service.join_room("UQaFrn", "password", 2)

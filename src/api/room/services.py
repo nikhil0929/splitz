@@ -5,16 +5,23 @@ from typing import Tuple
 from argon2 import PasswordHasher
 from typing import List
 
+from fastapi import UploadFile
+import boto3
+from botocore.exceptions import NoCredentialsError
 
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from psycopg2.errors import UniqueViolation
 import logging, random, string
+import os
 
 class RoomService:
-    def __init__(self, db_engine):
+    def __init__(self, db_engine, s3_access_key, s3_secret_key, bucket_name):
         self.db_engine = db_engine.get_engine()
         self.ph = PasswordHasher()
+        self.s3_access_key = s3_access_key
+        self.s3_secret_key = s3_secret_key
+        self.bucket_name = bucket_name
 
     # Create a new room from the given room_name, room_password, and user_id.
     def create_room(self, room_name: str, room_password: str, user_id: int) -> Room:
@@ -97,6 +104,75 @@ class RoomService:
             except:
                 logging.error("room.services.join_room(): Unknown error")
                 return False
+    
+    ## adds a receipt to the appropriate s3 bucket for the room with the given room code
+    ## NOTE: adding an image to a bucket folder causes an lambda function event to trigger for processing
+    ## the receipt. The lambda function processes the receipt and sends the JSON data back to this server to
+    ## to return to the client. USE Boto3 package for S3 file handling
+    # 
+    # For right now, implement dummy function in AWS Lambda that returns random JSON data. 
+    def add_receipt_to_s3_room(self, room_code: str, receipt_img: UploadFile) -> bool:
+        # Initialize the S3 client
+        s3 = boto3.client('s3', aws_access_key_id=self.s3_access_key, aws_secret_access_key=self.s3_secret_key)
+
+        # Define the bucket name and the file name (you can customize this)
+        bucket_name = self.bucket_name
+        file_name = f"{room_code}/{receipt_img.filename}"  # This will save the image in a folder named after the room_code
+
+        try:
+            # Upload the file to S3
+            s3.upload_fileobj(receipt_img.file, bucket_name, file_name)
+
+            # Here, you can trigger the AWS Lambda function if need be
+            # For now, as you mentioned, we'll assume the Lambda function is triggered automatically upon file upload
+
+            logging.info(f"room.services.add_receipt_to_s3_room(): Receipt uploaded to {room_code} folder in S3")
+            return True
+
+        except NoCredentialsError:
+            logging.error("room.services.add_receipt_to_s3_room(): Missing AWS credentials")
+            return False
+        except Exception as e:
+            logging.error(f"room.services.add_receipt_to_s3_room(): An error occurred: {e}")
+            return False
+
+
+    def download_receipts_from_s3_room(self, room_code: str) -> List[str]:
+        """
+        Download all receipt images from the specified room_code folder in the S3 bucket and save them to ./assets.
+        :param room_code: The code of the room.
+        :return: A list of local paths to the downloaded receipt images.
+        """
+        # Initialize the S3 client
+        s3 = boto3.client('s3', aws_access_key_id=self.s3_access_key, aws_secret_access_key=self.s3_secret_key)
+
+        try:
+            # List objects in the specified folder
+            response = s3.list_objects_v2(Bucket=self.bucket_name, Prefix=f"{room_code}/")
+
+            # Check if the response contains 'Contents' key
+            if 'Contents' not in response:
+                logging.warning(f"room.services.download_receipts_from_s3_room(): No receipts found for room {room_code}")
+                return []
+
+            # Create assets directory if it doesn't exist
+            if not os.path.exists('./assets'):
+                os.makedirs('./assets')
+
+            # Download each file and save to ./assets
+            local_paths = []
+            for content in response['Contents']:
+                file_name = content['Key'].split('/')[-1]  # Extract just the file name from the Key
+                local_path = os.path.join('./assets', file_name)
+                s3.download_file(self.bucket_name, content['Key'], local_path)
+                local_paths.append(local_path)
+
+            logging.info(f"room.services.download_receipts_from_s3_room(): Downloaded {len(local_paths)} receipts for room {room_code}")
+            return local_paths
+
+        except Exception as e:
+            logging.error(f"room.services.download_receipts_from_s3_room(): An error occurred: {e}")
+            return []
 
     #### HELPER FUNCTIONS ####
 
