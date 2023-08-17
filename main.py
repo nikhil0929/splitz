@@ -9,6 +9,7 @@ from db.database import Database
 from src.api.user.services import UserService
 from src.api.user.controller import UserController
 from src.api.room.services import RoomService
+from src.api.room.controller import RoomController
 from src.api.middleware.middleware import JWTMiddleware
 
 import imageio as iio
@@ -110,9 +111,9 @@ def main():
     # print("Is Valid: ", isValid)
 
     user_controller = UserController(user_service)
-    app.include_router(
-        user_controller.router
-    )
+    room_controller = RoomController(room_service)
+    app.include_router(user_controller.router)
+    app.include_router(room_controller.router)
     app.add_middleware(JWTMiddleware, jwt_authenticator=jwt_auth)
 
 

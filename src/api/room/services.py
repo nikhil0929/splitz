@@ -14,6 +14,7 @@ from sqlalchemy import select
 from psycopg2.errors import UniqueViolation
 import logging, random, string
 import os
+from io import BytesIO
 
 class RoomService:
     def __init__(self, db_engine, s3_access_key, s3_secret_key, bucket_name):
@@ -24,6 +25,7 @@ class RoomService:
         self.bucket_name = bucket_name
 
     # Create a new room from the given room_name, room_password, and user_id.
+    # return the newly created room
     def create_room(self, room_name: str, room_password: str, user_id: int) -> Room:
         
         room_code = self.generate_room_code()
@@ -43,7 +45,7 @@ class RoomService:
                 db.add(room)
                 db.commit()
                 logging.info("room.services.create_room(): Room created sucessfully")
-                return room
+                return self.get_room_by_code(room_code)
             except UniqueViolation:
                 logging.error("room.services.create_room(): Room code already exists; Cannot create room")
                 return None
@@ -56,12 +58,13 @@ class RoomService:
             return room
         
     # get a room from the given room code
+    # only return back room if the user_id is a member of the room
     def get_room_by_code(self, room_code: str) -> Room:
         with Session(self.db_engine) as db:
             stmt = select(Room).where(Room.room_code == room_code)
             room = db.scalars(stmt).one()
             return room
-        
+            
     # Get all rooms that the user with the given user_id is a member of
     def get_rooms_by_user_id(self, user_id: int) -> List[Room]:
         with Session(self.db_engine) as db:
@@ -135,13 +138,13 @@ class RoomService:
         except Exception as e:
             logging.error(f"room.services.add_receipt_to_s3_room(): An error occurred: {e}")
             return False
+        
 
-
-    def download_receipts_from_s3_room(self, room_code: str) -> List[str]:
+    def download_receipts_from_s3_room(self, room_code: str) -> List[Tuple[str, BytesIO]]:
         """
-        Download all receipt images from the specified room_code folder in the S3 bucket and save them to ./assets.
+        Download all receipt images from the specified room_code folder in the S3 bucket.
         :param room_code: The code of the room.
-        :return: A list of local paths to the downloaded receipt images.
+        :return: A list of tuples containing filename and the corresponding file content.
         """
         # Initialize the S3 client
         s3 = boto3.client('s3', aws_access_key_id=self.s3_access_key, aws_secret_access_key=self.s3_secret_key)
@@ -155,24 +158,20 @@ class RoomService:
                 logging.warning(f"room.services.download_receipts_from_s3_room(): No receipts found for room {room_code}")
                 return []
 
-            # Create assets directory if it doesn't exist
-            if not os.path.exists('./assets'):
-                os.makedirs('./assets')
-
-            # Download each file and save to ./assets
-            local_paths = []
+            file_contents = []
             for content in response['Contents']:
                 file_name = content['Key'].split('/')[-1]  # Extract just the file name from the Key
-                local_path = os.path.join('./assets', file_name)
-                s3.download_file(self.bucket_name, content['Key'], local_path)
-                local_paths.append(local_path)
+                file_obj = BytesIO()
+                s3.download_fileobj(self.bucket_name, content['Key'], file_obj)
+                file_contents.append((file_name, file_obj))
 
-            logging.info(f"room.services.download_receipts_from_s3_room(): Downloaded {len(local_paths)} receipts for room {room_code}")
-            return local_paths
+            logging.info(f"room.services.download_receipts_from_s3_room(): Downloaded {len(file_contents)} receipts for room {room_code}")
+            return file_contents
 
         except Exception as e:
             logging.error(f"room.services.download_receipts_from_s3_room(): An error occurred: {e}")
             return []
+
 
     #### HELPER FUNCTIONS ####
 
