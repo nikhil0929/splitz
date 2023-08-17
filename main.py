@@ -67,8 +67,8 @@ def main():
     user_service = UserService(splitz_db, twilio_auth, jwt_auth)
     room_service = RoomService(splitz_db, s3_access_key, s3_secret_key, bucket_name)
 
-    file_paths = room_service.download_receipts_from_s3_room("NWBAQ3")
-    print(file_paths)
+    # file_paths = room_service.download_receipts_from_s3_room("NWBAQ3")
+    # print(file_paths)
 
     # room_service.create_room("Test Room", "password", 1)
 
