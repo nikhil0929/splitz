@@ -20,6 +20,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         self.jwt_authenticator = jwt_authenticator
         self.allowed_paths = ["/user/initialize-verification",
                               "/user/complete-verification",
+                              "/receipts/receive-receipt",
                               "/docs",
                               "/openapi.json"]
 

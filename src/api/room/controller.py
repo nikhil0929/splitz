@@ -1,7 +1,7 @@
 # room.controller.py
 
 from fastapi import APIRouter, Request, HTTPException, status, UploadFile, File, Depends
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from . import schemas
 from typing import List
 
@@ -20,7 +20,7 @@ class RoomController:
         @self.router.post("/create", response_model=schemas.Room)
         def create_room(room: schemas.RoomCreate, request: Request):
             jwt_user = request.state.user
-            print("USER ID: ", jwt_user["id"])
+            # print("USER ID: ", jwt_user["id"])
             new_room = self.service.create_room(room.room_name, room.room_password, jwt_user["id"])
             return new_room
 
@@ -37,9 +37,13 @@ class RoomController:
             return self.service.get_users_by_room_id(room_id)
 
         @self.router.post("/join")
-        def join_room(room_code: str, room_password: str, request: Request):
+        def join_room(room_join: schemas.RoomJoin, request: Request):
             jwt_user = request.state.user
-            return self.service.join_room(room_code, room_password, jwt_user["id"])
+            did_join = self.service.join_room(room_join.room_code, room_join.room_password, jwt_user["id"])
+            if not did_join:
+                raise HTTPException(status_code=404, detail="Unable to join room")
+            else:
+                return Response(content="Successfully joined room", status_code=status.HTTP_200_OK)
 
         @self.router.post("/{room_code}/upload-receipt", response_model=schemas.ReceiptUpload)
         def upload_receipt_to_room(room_code: str, receipt_img: UploadFile = File(...)):

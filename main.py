@@ -1,4 +1,6 @@
 import os
+from src.api.receipt.controller import ReceiptController
+from src.api.receipt.services import ReceiptService
 from src.auth.sms_verification import TwilioAuthenticator
 from src.auth.jwt_auth import JWTAuthenticator
 from dotenv import load_dotenv
@@ -67,6 +69,7 @@ def main():
 
     user_service = UserService(splitz_db, twilio_auth, jwt_auth)
     room_service = RoomService(splitz_db, s3_access_key, s3_secret_key, bucket_name)
+    receipt_service = ReceiptService(splitz_db)
 
     # file_paths = room_service.download_receipts_from_s3_room("NWBAQ3")
     # print(file_paths)
@@ -112,8 +115,10 @@ def main():
 
     user_controller = UserController(user_service)
     room_controller = RoomController(room_service)
+    receipt_controller = ReceiptController(receipt_service)
     app.include_router(user_controller.router)
     app.include_router(room_controller.router)
+    app.include_router(receipt_controller.router)
     app.add_middleware(JWTMiddleware, jwt_authenticator=jwt_auth)
 
 

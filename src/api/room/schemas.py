@@ -9,6 +9,10 @@ class RoomBase(BaseModel):
 class RoomCreate(RoomBase):
     room_password: str
 
+class RoomJoin(BaseModel):
+    room_code: str
+    room_password: str
+
 class Room(RoomBase):
     room_code: str
     room_owner_id: int

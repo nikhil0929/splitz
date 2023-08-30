@@ -94,6 +94,13 @@ class RoomService:
                     if self.ph.verify(room.room_password, room_password):
                         # Add the user to the room's users list (back-populates)
                         user = db.query(User).get(user_id)
+
+                        # Check if the user is already part of the room
+                        if user in room.users:
+                            logging.warning("room.services.join_room(): User is already part of the room")
+                            return False
+
+
                         room.users.append(user)
                         db.commit()
                         logging.info("room.services.join_room(): User joined room sucessfully")
