@@ -69,4 +69,4 @@ class Receipt(Base):
     items: Mapped[List["Item"]] = relationship("Item", back_populates="receipt")
 
     def __repr__(self) -> str:
-        return f"Receipt(id={self.id!r}, name={self.receipt_name!r}, room_code={self.room_code!r})"
+        return f"Receipt(id={self.id!r}, name={self.receipt_name!r}, room_code={self.room_code!r}, items={self.items!r})"

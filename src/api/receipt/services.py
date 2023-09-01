@@ -11,7 +11,7 @@ from fastapi import UploadFile
 import boto3
 from botocore.exceptions import NoCredentialsError
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import select
 from psycopg2.errors import UniqueViolation
 import logging, random, string
@@ -86,9 +86,16 @@ class Receipt(Base):
     def get_receipts(self, room_code: str) -> List[Receipt]:
         with Session(self.db_engine) as session:
             try:
-                stmt = select(Receipt).where(Receipt.room_code == room_code)
+                # stmt = select(Receipt).where(Receipt.room_code == room_code)
+                # receipts = session.scalars(stmt).all()
+                # receipts = session.query(Receipt).options(joinedload(Receipt.items)).all()
+                # stmt = select(Receipt).where(Receipt.room_code == room_code).options(joinedload(Receipt.items))
+                # receipts = session.scalars(stmt).all()
+                stmt = (select(Receipt)
+                    .where(Receipt.room_code == room_code)
+                    .options(selectinload(Receipt.items)))
                 receipts = session.scalars(stmt).all()
-                print("Receipts: " ,receipts)
+                # print("Receipts: " ,receipts)
                 return receipts
             except Exception as e:
                 logging.error(e)

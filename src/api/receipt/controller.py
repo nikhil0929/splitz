@@ -32,18 +32,21 @@ class ReceiptController:
         
         @self.router.get("/get-receipts/{room_code}", response_model=List[schemas.Receipt])
         def get_receipts(room_code: str, request: Request):
-            # Get all receipts from roo
+            # Get all receipts from room
             # make sure user is part of this room
             usr = request.state.user
             if not self.service.is_user_in_room(usr["id"], room_code):
                 raise HTTPException(status_code=404, detail="User is not in room")
-            return self.service.get_receipts(room_code)
+            rct = self.service.get_receipts(room_code)
+            # print(rct)
+            return rct
         
-        @self.router.get("/get-items/{receipt_id}", response_model=List[schemas.Item])
-        def get_items(receipt_id: int):
+        @self.router.get("/get-items/{room_code}/{receipt_id}", response_model=List[schemas.Item])
+        def get_items(receipt_id: int, room_code: str, request: Request):
             # Get all items from receipt
             # make sure user is part of this room
-            if not self.service.is_user_in_room(receipt_id):
+            usr = request.state.user
+            if not self.service.is_user_in_room(usr["id"], room_code):
                 raise HTTPException(status_code=404, detail="User is not in room")
             return self.service.get_items(receipt_id)
 

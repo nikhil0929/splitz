@@ -29,7 +29,7 @@ class JWTAuthenticator:
     def verify_access_token(self, token: str) -> bool:
         try:
             decoded = self.decode_access_token(token)
-            print(decoded)
+            # print(decoded)
             decoded_exp = decoded["exp"]
             current_time = datetime.utcnow()
             if current_time > datetime.fromtimestamp(decoded_exp):
