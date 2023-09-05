@@ -18,19 +18,19 @@ class ReceiptController:
     def initialize_routes(self):
 
         # this is for the AWS lambda function to use
-        @self.router.post("/receive-receipt", response_model=bool)
+        @self.router.post("/{room_code}/receive-receipt", response_model=schemas.Receipt)
         def receive_receipt(receipt: schemas.ReceiptCreate):
             # Process the receipt data
             # Create into Item object for each item and add to new Receipt object
             # Then add receipt to room
             # Leave users field empty for now
             
-            did_create = self.service.create_receipt(receipt.room_code, receipt.name, receipt.items)
-            if not did_create:
+            new_rct = self.service.create_receipt(receipt.room_code, receipt.receipt_name, receipt.items)
+            if not new_rct:
                 raise HTTPException(status_code=500, detail="Error creating receipt")
-            return did_create
+            return new_rct
         
-        @self.router.get("/get-receipts/{room_code}", response_model=List[schemas.Receipt])
+        @self.router.get("/{room_code}/get-receipts", response_model=List[schemas.Receipt])
         def get_receipts(room_code: str, request: Request):
             # Get all receipts from room
             # make sure user is part of this room
@@ -41,7 +41,7 @@ class ReceiptController:
             # print(rct)
             return rct
         
-        @self.router.get("/get-items/{room_code}/{receipt_id}", response_model=List[schemas.Item])
+        @self.router.get("/{room_code}/get-items/{receipt_id}", response_model=List[schemas.Item])
         def get_items(receipt_id: int, room_code: str, request: Request):
             # Get all items from receipt
             # make sure user is part of this room
@@ -51,13 +51,16 @@ class ReceiptController:
             return self.service.get_items(receipt_id)
 
         
-        @self.router.post("/user-selected-items")
-        def user_selected_items(items: List[schemas.Item], request: Request):
+        @self.router.post("/{room_code}/user-select-items/{receipt_id}")
+        def user_selected_items(items: List[schemas.Item], room_code: str, receipt_id: int,  request: Request):
             # Take in user selected items and add to users field in Item object
             # make sure user is part of this room
             usr = request.state.user
-            if not self.service.is_user_in_room(items[0].receipt_id):
+            if not self.service.is_user_in_room(usr["id"], room_code):
                 raise HTTPException(status_code=404, detail="User is not in room")
-            return self.service.user_selected_items(items, usr["id"])
+            did_add = self.service.user_selected_items(items, usr["id"], receipt_id)
+            if not did_add:
+                raise HTTPException(status_code=500, detail="Error adding user to items")
+            return did_add
             
         

@@ -66,7 +66,7 @@ class Receipt(Base):
     room: Mapped["Room"] = relationship("Room", back_populates="receipts")
     
     # Establish a one-to-many relationship with Item
-    items: Mapped[List["Item"]] = relationship("Item", back_populates="receipt")
+    items: Mapped[List["Item"]] = relationship("Item", back_populates="receipt", lazy="selectin")
 
     def __repr__(self) -> str:
         return f"Receipt(id={self.id!r}, name={self.receipt_name!r}, room_code={self.room_code!r}, items={self.items!r})"

@@ -59,7 +59,7 @@ class Receipt(Base):
         return f"Receipt(id={self.id!r}, name={self.receipt_name!r}, room_id={self.room_id!r} )"
         
     '''
-    def create_receipt(self, room_code: str, receipt_name: str, items_dict: dict) -> bool:
+    def create_receipt(self, room_code: str, receipt_name: str, items_dict: dict) -> Receipt:
         with Session(self.db_engine) as session:
             try:
                 # Get receipt room
@@ -77,10 +77,12 @@ class Receipt(Base):
                 new_receipt = Receipt(receipt_name=receipt_name, room_code=room_code, items=items_list)
                 session.add(new_receipt)
                 session.commit()
-                return True
+                get_rcpt_stmt = select(Receipt).where(Receipt.id == new_receipt.id)
+                new_rcpt = session.scalars(get_rcpt_stmt).one()
+                return new_rcpt
             except Exception as e:
                 logging.error(e)
-                return False
+                return None
 
             
     def get_receipts(self, room_code: str) -> List[Receipt]:
@@ -111,20 +113,26 @@ class Receipt(Base):
                 logging.error(e)
                 return []
             
-    ## add user to item 'users' field
-    def user_selected_items(self, items: List[Item], user_id: int) -> bool:
+    ## add user to item 'users' field for each of the selected items
+    def user_selected_items(self, items: List[Item], user_id: int, receipt_id: int) -> bool:
         with Session(self.db_engine) as session:
             try:
                 for item in items:
                     stmt = select(Item).where(Item.id == item.id)
                     item = session.scalars(stmt).one()
+
+                    # Check if the item belongs to the receipt
+                    if item.receipt_id != receipt_id:
+                        continue
+
                     # Add the user to the room's users list (back-populates)
                     user = session.query(User).get(user_id)
 
-                    # Check if the user is already part of the room
+                    # Check if the user is already in the item's users list
                     if user in item.users:
-                        logging.warning("receipt.services.user_selected_items(): User is already part of the room")
-                        return False
+                        continue
+
+                    # Add the user to the item's users list (back-populates)
                     item.users.append(user)
                 session.commit()
                 return True
