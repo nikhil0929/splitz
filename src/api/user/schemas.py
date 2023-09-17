@@ -34,6 +34,13 @@ class User(UserBase):
     class Config:
         from_attributes = True
 
+class MiniUser(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
 
 class Token(BaseModel):
     access_token: str

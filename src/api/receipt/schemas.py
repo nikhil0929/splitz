@@ -1,5 +1,6 @@
 from typing import Dict, Tuple, List
 from pydantic import BaseModel
+from src.api.user import MiniUser
 
 class ItemBase(BaseModel):
     item_name: str
@@ -14,6 +15,12 @@ class Item(ItemBase):
 
     class Config:
         from_attributes = True
+
+class ItemWithUsers(Item):
+    users: List[MiniUser]
+
+class UserItem(Item):
+    split_cost: float
 
 class ReceiptBase(BaseModel):
     room_code: str

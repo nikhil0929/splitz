@@ -41,7 +41,7 @@ class ReceiptController:
             # print(rct)
             return rct
         
-        @self.router.get("/{room_code}/get-items/{receipt_id}", response_model=List[schemas.Item])
+        @self.router.get("/{room_code}/get-items/{receipt_id}", response_model=List[schemas.ItemWithUsers])
         def get_items(receipt_id: int, room_code: str, request: Request):
             # Get all items from receipt
             # make sure user is part of this room
@@ -52,7 +52,7 @@ class ReceiptController:
 
         
         @self.router.post("/{room_code}/user-select-items/{receipt_id}")
-        def user_selected_items(items: List[schemas.Item], room_code: str, receipt_id: int,  request: Request):
+        def user_select_items(items: List[schemas.Item], room_code: str, receipt_id: int,  request: Request):
             # Take in user selected items and add to users field in Item object
             # make sure user is part of this room
             usr = request.state.user
@@ -62,5 +62,18 @@ class ReceiptController:
             if not did_add:
                 raise HTTPException(status_code=500, detail="Error adding user to items")
             return did_add
+        
+        # Get users items for a given receipt_id
+        @self.router.get("/{room_code}/get-user-items/{receipt_id}", response_model=List[schemas.UserItem])
+        def get_user_items(room_code: str, receipt_id: int, request: Request):
+            # Get all items from receipt
+            # make sure user is part of this room
+            usr = request.state.user
+            if not self.service.is_user_in_room(usr["id"], room_code):
+                raise HTTPException(status_code=404, detail="User is not in room")
+            return self.service.get_user_items(receipt_id, usr["id"])
+        
+        
+
             
         

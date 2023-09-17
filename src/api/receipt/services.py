@@ -11,7 +11,7 @@ from fastapi import UploadFile
 import boto3
 from botocore.exceptions import NoCredentialsError
 
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, joinedload, selectinload, load_only
 from sqlalchemy import select
 from psycopg2.errors import UniqueViolation
 import logging, random, string
@@ -106,15 +106,17 @@ class Receipt(Base):
     def get_items(self, receipt_id: int) -> List[Item]:
         with Session(self.db_engine) as session:
             try:
-                stmt = select(Receipt).where(Receipt.id == receipt_id)
-                receipt = session.scalars(stmt).one()
-                return receipt.items
+                stmt = (select(Item)
+                    .where(Item.receipt_id == receipt_id)
+                    .options(selectinload(Item.users).load_only(User.id, User.name)))
+                itms = session.scalars(stmt).all()
+                return itms
             except Exception as e:
                 logging.error(e)
                 return []
             
     ## add user to item 'users' field for each of the selected items
-    def user_selected_items(self, items: List[Item], user_id: int, receipt_id: int) -> bool:
+    def user_select_items(self, items: List[Item], user_id: int, receipt_id: int) -> bool:
         with Session(self.db_engine) as session:
             try:
                 for item in items:
@@ -139,6 +141,20 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(e)
                 return False
+
+    def get_user_items(self, receipt_id: int, user_id: int) -> List[Item]:
+        with Session(self.db_engine) as session:
+            try:
+                stmt = (select(Item)
+                    .where(Item.receipt_id == receipt_id)
+                    .options(selectinload(Item.users).load_only(User.id, User.name)))
+                itms = session.scalars(stmt).all()
+                return itms
+            except Exception as e:
+                logging.error(e)
+                return []    
+
+    ## HELPER FUNCTIONS ##
             
     def is_user_in_room(self, user_id: int, room_code: str) -> bool:
         with Session(self.db_engine) as session:
