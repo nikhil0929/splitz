@@ -19,13 +19,13 @@ class ReceiptController:
 
         # this is for the AWS lambda function to use
         @self.router.post("/{room_code}/receive-receipt", response_model=schemas.Receipt)
-        def receive_receipt(receipt: schemas.ReceiptCreate):
+        def receive_receipt(room_code: str, receipt: schemas.ReceiptCreate):
             # Process the receipt data
             # Create into Item object for each item and add to new Receipt object
             # Then add receipt to room
             # Leave users field empty for now
             
-            new_rct = self.service.create_receipt(receipt.room_code, receipt.receipt_name, receipt.items)
+            new_rct = self.service.create_receipt(room_code, receipt.receipt_name, receipt.items)
             if not new_rct:
                 raise HTTPException(status_code=500, detail="Error creating receipt")
             return new_rct
@@ -58,7 +58,7 @@ class ReceiptController:
             usr = request.state.user
             if not self.service.is_user_in_room(usr["id"], room_code):
                 raise HTTPException(status_code=404, detail="User is not in room")
-            did_add = self.service.user_selected_items(items, usr["id"], receipt_id)
+            did_add = self.service.user_select_items(items, usr["id"], receipt_id)
             if not did_add:
                 raise HTTPException(status_code=500, detail="Error adding user to items")
             return did_add

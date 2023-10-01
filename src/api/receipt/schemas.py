@@ -23,7 +23,6 @@ class UserItem(Item):
     split_cost: float
 
 class ReceiptBase(BaseModel):
-    room_code: str
     receipt_name: str
 
 class ReceiptCreate(ReceiptBase):
@@ -32,6 +31,8 @@ class ReceiptCreate(ReceiptBase):
 
 class Receipt(ReceiptBase):
     id: int
+    room_code: str
+    owner_id: int
     items: List[Item]
 
     class Config:

@@ -10,7 +10,7 @@ from .receipt import user_item_association
 
 if TYPE_CHECKING:
     from .room import Room  # Import Room only for type checking
-    from .receipt import Item  # Import Item only for type checking
+    from .receipt import Item, Receipt  # Import Item only for type checking
 
 class User(Base):
     __tablename__ = "users"
@@ -35,6 +35,9 @@ class User(Base):
         secondary=user_item_association,
         back_populates="users"
     )
+
+    # Establish the one-to-many relationship with Receipt. This User can own multiple receipts
+    receipts: Mapped[List["Receipt"]] = relationship("Receipt", back_populates="owner")
 
     
     def __repr__(self) -> str:

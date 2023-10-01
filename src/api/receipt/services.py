@@ -66,6 +66,10 @@ class Receipt(Base):
                 stmt = select(Room).where(Room.room_code == room_code)
                 room = session.scalars(stmt).one()
 
+                # Get user to assign as receipt owner
+                stmt = select(User).where(User.id == room.room_owner_id)
+                user = session.scalars(stmt).one()
+
                 # Create items for receipt
                 items_list = []
                 for item_name, (item_cost, item_quantity) in items_dict.items():
@@ -74,15 +78,33 @@ class Receipt(Base):
                     session.add(item)
                     
                 # Create a new receipt
-                new_receipt = Receipt(receipt_name=receipt_name, room_code=room_code, items=items_list)
+                new_receipt = Receipt(receipt_name=receipt_name, room_code=room_code, items=items_list, owner=user)
                 session.add(new_receipt)
                 session.commit()
                 get_rcpt_stmt = select(Receipt).where(Receipt.id == new_receipt.id)
                 new_rcpt = session.scalars(get_rcpt_stmt).one()
                 return new_rcpt
             except Exception as e:
-                logging.error(e)
+                ## logging.error("room.services.join_room(): User is already part of the room")
+                logging.error(f"receipt.services.create_receipt(): Error creating receipt - {e}")
                 return None
+            
+            # items_list = []
+            #     for item_name, (item_cost, item_quantity) in items_dict.items():
+            #         item = Item(item_name=item_name, item_cost=item_cost, item_quantity=item_quantity)
+            #         items_list.append(item)
+            #         session.add(item)
+                    
+            #     # Create a new receipt
+            #     new_receipt = Receipt(receipt_name=receipt_name, room_code=room_code, items=items_list)
+            #     session.add(new_receipt)
+            #     session.commit()
+            #     get_rcpt_stmt = select(Receipt).where(Receipt.id == new_receipt.id)
+            #     new_rcpt = session.scalars(get_rcpt_stmt).one()
+            #     return new_rcpt
+            # except Exception as e:
+            #     logging.error(e)
+            #     return None
 
             
     def get_receipts(self, room_code: str) -> List[Receipt]:
@@ -100,7 +122,7 @@ class Receipt(Base):
                 # print("Receipts: " ,receipts)
                 return receipts
             except Exception as e:
-                logging.error(e)
+                logging.error(f"receipt.services.get_receipts(): Error getting receipts - {e}")
                 return []
             
     def get_items(self, receipt_id: int) -> List[Item]:
@@ -112,7 +134,7 @@ class Receipt(Base):
                 itms = session.scalars(stmt).all()
                 return itms
             except Exception as e:
-                logging.error(e)
+                logging.error(f"receipt.services.get_items(): Error getting items - {e}")
                 return []
             
     ## add user to item 'users' field for each of the selected items
@@ -139,7 +161,7 @@ class Receipt(Base):
                 session.commit()
                 return True
             except Exception as e:
-                logging.error(e)
+                logging.error(f"receipt.services.user_select_items(): Error adding user to items - {e}")
                 return False
 
     def get_user_items(self, receipt_id: int, user_id: int) -> List[Item]:
@@ -151,7 +173,7 @@ class Receipt(Base):
                 itms = session.scalars(stmt).all()
                 return itms
             except Exception as e:
-                logging.error(e)
+                logging.error(f"receipt.services.get_user_items(): Error getting items for user - {e}")
                 return []    
 
     ## HELPER FUNCTIONS ##

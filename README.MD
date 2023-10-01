@@ -50,3 +50,6 @@ a `room` is going to represented as a UUID as the primary key. the User and Room
 `   room_id:`Primary key (UUID)
 `   room_name`: Name of the room
 `   room_password`: Password for the room (hashed + salt)
+
+
+ssh -i "splitz_ec2.pem" ubuntu@ec2-3-14-255-133.us-east-2.compute.amazonaws.com
