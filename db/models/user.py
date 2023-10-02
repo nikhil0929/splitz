@@ -6,7 +6,7 @@ from sqlalchemy.orm import mapped_column
 from ..base_model import Base
 from sqlalchemy.orm import relationship
 from .room import user_room_association
-from .receipt import user_item_association
+from .receipt import user_item_association, user_receipt_association
 
 if TYPE_CHECKING:
     from .room import Room  # Import Room only for type checking
@@ -36,8 +36,14 @@ class User(Base):
         back_populates="users"
     )
 
-    # Establish the one-to-many relationship with Receipt. This User can own multiple receipts
-    receipts: Mapped[List["Receipt"]] = relationship("Receipt", back_populates="owner")
+    # Establish a many-to-many relationship with Receipt
+    receipts: Mapped[List["Receipt"]] = relationship(
+        "Receipt",
+        secondary=user_receipt_association,
+        back_populates="users"
+    )
+
+    
 
     
     def __repr__(self) -> str:

@@ -75,55 +75,51 @@ class Receipt(Base):
                 for item_name, (item_cost, item_quantity) in items_dict.items():
                     item = Item(item_name=item_name, item_cost=item_cost, item_quantity=item_quantity)
                     items_list.append(item)
-                    session.add(item)
                     
                 # Create a new receipt
-                new_receipt = Receipt(receipt_name=receipt_name, room_code=room_code, items=items_list, owner=user)
+                new_receipt = Receipt(receipt_name=receipt_name, room_code=room_code, items=items_list, owner_id=user.id)
                 session.add(new_receipt)
                 session.commit()
-                get_rcpt_stmt = select(Receipt).where(Receipt.id == new_receipt.id)
-                new_rcpt = session.scalars(get_rcpt_stmt).one()
-                return new_rcpt
+                session.refresh(new_receipt)  # Refresh the object after committing
+                # print(new_receipt)
+                return new_receipt
             except Exception as e:
                 ## logging.error("room.services.join_room(): User is already part of the room")
                 logging.error(f"receipt.services.create_receipt(): Error creating receipt - {e}")
                 return None
-            
-            # items_list = []
-            #     for item_name, (item_cost, item_quantity) in items_dict.items():
-            #         item = Item(item_name=item_name, item_cost=item_cost, item_quantity=item_quantity)
-            #         items_list.append(item)
-            #         session.add(item)
-                    
-            #     # Create a new receipt
-            #     new_receipt = Receipt(receipt_name=receipt_name, room_code=room_code, items=items_list)
-            #     session.add(new_receipt)
-            #     session.commit()
-            #     get_rcpt_stmt = select(Receipt).where(Receipt.id == new_receipt.id)
-            #     new_rcpt = session.scalars(get_rcpt_stmt).one()
-            #     return new_rcpt
-            # except Exception as e:
-            #     logging.error(e)
-            #     return None
-
-            
+    
+    # get all receipts that are in this room_code. Only send back receipt data (NO ITEM DATA)
     def get_receipts(self, room_code: str) -> List[Receipt]:
         with Session(self.db_engine) as session:
             try:
-                # stmt = select(Receipt).where(Receipt.room_code == room_code)
-                # receipts = session.scalars(stmt).all()
-                # receipts = session.query(Receipt).options(joinedload(Receipt.items)).all()
-                # stmt = select(Receipt).where(Receipt.room_code == room_code).options(joinedload(Receipt.items))
-                # receipts = session.scalars(stmt).all()
-                stmt = (select(Receipt)
-                    .where(Receipt.room_code == room_code)
-                    .options(selectinload(Receipt.items)))
+                stmt = select(Receipt).where(Receipt.room_code == room_code)
                 receipts = session.scalars(stmt).all()
-                # print("Receipts: " ,receipts)
+                print(receipts)
                 return receipts
             except Exception as e:
                 logging.error(f"receipt.services.get_receipts(): Error getting receipts - {e}")
                 return []
+            
+    # get receipt by id with all item data
+    def get_receipt(self, receipt_id: int) -> Receipt:
+        with Session(self.db_engine) as session:
+            try:
+                # Use joinedload to load the items and users eagerly
+                stmt = (
+                select(Receipt)
+                .options(
+                    joinedload(Receipt.items)  # Load items
+                    .joinedload(Item.users)  # Load users for each item
+                )
+                .where(Receipt.id == receipt_id)
+            )
+
+                receipt = session.scalars(stmt).first()
+                return receipt
+            except Exception as e:
+                logging.error(e)
+                return None
+
             
     def get_items(self, receipt_id: int) -> List[Item]:
         with Session(self.db_engine) as session:
@@ -138,19 +134,29 @@ class Receipt(Base):
                 return []
             
     ## add user to item 'users' field for each of the selected items
-    def user_select_items(self, items: List[Item], user_id: int, receipt_id: int) -> bool:
+    ## send a list of item ids in the request body in the "item_id_list" field
+    def user_select_items(self, items_data: schemas.GetItems, user_id: int, receipt_id: int) -> bool:
         with Session(self.db_engine) as session:
             try:
-                for item in items:
-                    stmt = select(Item).where(Item.id == item.id)
+                user = session.query(User).get(user_id)
+            
+                # Hold a reference to the Receipt object
+                receipt = session.query(Receipt).get(receipt_id)
+
+                # Use the reference throughout your code
+                if user not in receipt.users:
+                    receipt.users.append(user)
+                    session.commit()
+
+                # Add the user to the user_item_association table for each item in the item_id_list
+                for item_id in items_data.item_id_list:
+                    stmt = select(Item).where(Item.id == item_id)
                     item = session.scalars(stmt).one()
 
                     # Check if the item belongs to the receipt
                     if item.receipt_id != receipt_id:
                         continue
-
-                    # Add the user to the room's users list (back-populates)
-                    user = session.query(User).get(user_id)
+                    
 
                     # Check if the user is already in the item's users list
                     if user in item.users:

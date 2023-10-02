@@ -7,8 +7,8 @@ class ItemBase(BaseModel):
     item_quantity: int
     item_cost: float
 
-class GetItem(ItemBase):
-    receipt_id: int
+class GetItems(BaseModel):
+    item_id_list: List[int]
 
 class Item(ItemBase):
     id: int
@@ -27,13 +27,15 @@ class ReceiptBase(BaseModel):
 
 class ReceiptCreate(ReceiptBase):
     items: Dict[str, Tuple[float, int]]
-    
 
-class Receipt(ReceiptBase):
+class ReceiptNoItems(ReceiptBase):
     id: int
     room_code: str
     owner_id: int
-    items: List[Item]
+    
+
+class Receipt(ReceiptNoItems):
+    items: List[ItemWithUsers]
 
     class Config:
         from_attributes = True

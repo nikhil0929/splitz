@@ -29,9 +29,16 @@ user_item_association = Table(
     'user_item', Base.metadata,
     Column('user_id', Integer, ForeignKey('users.id')),
     Column('item_id', Integer, ForeignKey('items.id')),
-    # Additional columns for relationship-specific data
-    Column('split_cost', Float)
 )
+
+user_receipt_association = Table(
+    'user_receipt', Base.metadata,
+    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('receipt_id', Integer, ForeignKey('receipts.id')),
+    # Additional column for relationship-specific data
+    Column('receipt_total_cost', Float)
+)
+
 
 
 
@@ -65,10 +72,16 @@ class Receipt(Base):
     room_code: Mapped[str] = mapped_column(String, ForeignKey("rooms.room_code"))
     room: Mapped["Room"] = relationship("Room", back_populates="receipts")
     owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
-    owner: Mapped["User"] = relationship("User", back_populates="receipts")
     
     # Establish a one-to-many relationship with Item
-    items: Mapped[List["Item"]] = relationship("Item", back_populates="receipt", lazy="selectin")
+    items: Mapped[List["Item"]] = relationship("Item", back_populates="receipt", lazy="select")
+
+    # Establish a many-to-many relationship with User
+    users: Mapped[List["User"]] = relationship(
+        "User",
+        secondary=user_receipt_association,
+        back_populates="receipts"
+    )
 
     def __repr__(self) -> str:
         return f"Receipt(id={self.id!r}, name={self.receipt_name!r}, room_code={self.room_code!r}, items={self.items!r})"
