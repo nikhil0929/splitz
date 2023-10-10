@@ -1,7 +1,6 @@
 from . import schemas
-from db.models.receipt import Receipt
+from db.models.receipt import Receipt, Item, UserReceiptAssociation
 from db.models.room import Room
-from db.models.receipt import Item
 from db.models.user import User
 from typing import Tuple
 from argon2 import PasswordHasher
@@ -12,7 +11,7 @@ import boto3
 from botocore.exceptions import NoCredentialsError
 
 from sqlalchemy.orm import Session, joinedload, selectinload, load_only
-from sqlalchemy import select
+from sqlalchemy import select, insert
 from psycopg2.errors import UniqueViolation
 import logging, random, string
 import os
@@ -135,55 +134,82 @@ class Receipt(Base):
             
     ## add user to item 'users' field for each of the selected items
     ## send a list of item ids in the request body in the "item_id_list" field
-    def user_select_items(self, items_data: schemas.GetItems, user_id: int, receipt_id: int) -> bool:
+    ## also populate the user_receipt "receipt_total_cost" field with the total cost of the receipt
+    ##      The total cost is calculated on the frontend and sent in the request body
+    ## This function/API is only called when the user clicks on the "Confirm total" button
+    ## THIS FUNCTION ALLOWS FOR UPDATING THE TOTAL COST OF THE RECEIPT AND ITEM SELECTION (ADD MORE ITEMS)
+    def user_select_items(self, items_data: list, user_id: int, receipt_id: int, user_total_cost: float, room_code: str) -> bool:
         with Session(self.db_engine) as session:
             try:
-                user = session.query(User).get(user_id)
-            
-                # Hold a reference to the Receipt object
-                receipt = session.query(Receipt).get(receipt_id)
+                user_stmt = select(User).where(User.id == user_id)
+                user = session.execute(user_stmt).scalars().first()
 
-                # Use the reference throughout your code
-                if user not in receipt.users:
-                    receipt.users.append(user)
-                    session.commit()
+                receipt_stmt = select(Receipt).where(Receipt.id == receipt_id)
+                receipt = session.execute(receipt_stmt).scalars().first()
 
-                # Add the user to the user_item_association table for each item in the item_id_list
-                for item_id in items_data.item_id_list:
-                    stmt = select(Item).where(Item.id == item_id)
-                    item = session.scalars(stmt).one()
+                if receipt.room_code != room_code:
+                    return False
 
-                    # Check if the item belongs to the receipt
-                    if item.receipt_id != receipt_id:
+                if user not in receipt.room.users:
+                    return False
+
+                # Check if the UserReceiptAssociation already exists
+                assoc_stmt = select(UserReceiptAssociation).where(UserReceiptAssociation.user_id == user_id, UserReceiptAssociation.receipt_id == receipt_id)
+                association = session.execute(assoc_stmt).scalars().first()
+
+                if association:
+                    # Update the receipt_total_cost if the association already exists
+                    association.receipt_total_cost = user_total_cost
+                else:
+                    # Create a new association if it doesn't exist
+                    receipt.user_associations.append(UserReceiptAssociation(user=user, receipt_total_cost=user_total_cost))
+
+                session.commit()
+
+                for item_id in items_data:
+                    item_stmt = select(Item).where(Item.id == item_id)
+                    item = session.execute(item_stmt).scalars().first()
+
+                    if item.receipt_id != receipt.id:
                         continue
-                    
 
-                    # Check if the user is already in the item's users list
                     if user in item.users:
                         continue
 
-                    # Add the user to the item's users list (back-populates)
                     item.users.append(user)
+
                 session.commit()
                 return True
             except Exception as e:
                 logging.error(f"receipt.services.user_select_items(): Error adding user to items - {e}")
                 return False
 
-    def get_user_items(self, receipt_id: int, user_id: int) -> List[Item]:
+
+    def get_user_and_receipt(self, receipt_id: int, user_id: int, room_code: str) -> tuple:
         with Session(self.db_engine) as session:
             try:
-                stmt = (select(Item)
-                    .where(Item.receipt_id == receipt_id)
-                    .options(selectinload(Item.users).load_only(User.id, User.name)))
-                itms = session.scalars(stmt).all()
-                return itms
+                user_stmt = select(User).where(User.id == user_id)
+                user = session.execute(user_stmt).scalars().first()
+
+                # check if user is a part of this room
+                if user.room_code != room_code:
+                    return None
+                
+                # Hold a reference to the Receipt object
+                receipt_stmt = select(Receipt).where(Receipt.id == receipt_id)
+                receipt = session.execute(receipt_stmt).scalars().first()
+
+                # get receipt_total_cost for this user in the association table
+                user_rcpt_stmt = select(UserReceiptAssociation).where(UserReceiptAssociation.user_id == user_id).where(UserReceiptAssociation.receipt_id == receipt_id)
+                user_rcpt = session.execute(user_rcpt_stmt).scalars().first()
+                cost = user_rcpt.receipt_total_cost
+
+                return (receipt, user, cost)
             except Exception as e:
                 logging.error(f"receipt.services.get_user_items(): Error getting items for user - {e}")
-                return []    
+                return None
 
     ## HELPER FUNCTIONS ##
-            
     def is_user_in_room(self, user_id: int, room_code: str) -> bool:
         with Session(self.db_engine) as session:
             try:

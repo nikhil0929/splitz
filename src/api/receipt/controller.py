@@ -58,20 +58,24 @@ class ReceiptController:
             usr = request.state.user
             if not self.service.is_user_in_room(usr["id"], room_code):
                 raise HTTPException(status_code=404, detail="User is not in room")
-            did_add = self.service.user_select_items(items_data, usr["id"], receipt_id)
+            did_add = self.service.user_select_items(items_data.item_id_list, usr["id"], receipt_id, items_data.user_total_cost, room_code)
+            
             if not did_add:
                 raise HTTPException(status_code=500, detail="Error adding user to items")
             return did_add
         
         # Get users items for a given receipt_id
-        @self.router.get("/{room_code}/get-user-items/{receipt_id}", response_model=List[schemas.UserItem])
+        @self.router.get("/{room_code}/get-user-items/{receipt_id}")
         def get_user_items(room_code: str, receipt_id: int, request: Request):
             # Get all items from receipt
             # make sure user is part of this room
             usr = request.state.user
             if not self.service.is_user_in_room(usr["id"], room_code):
                 raise HTTPException(status_code=404, detail="User is not in room")
-            return self.service.get_user_items(receipt_id, usr["id"])
+            data = self.service.get_user_and_receipt(receipt_id, usr["id"], room_code)
+            if data is None:
+                raise HTTPException(status_code=500, detail="Error getting user items - user is not in room code")
+            return {"receipt": data[0], "user": data[1], "user_total_cost": data[2]}
         
         
 

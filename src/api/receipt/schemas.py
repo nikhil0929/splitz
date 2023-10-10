@@ -9,6 +9,7 @@ class ItemBase(BaseModel):
 
 class GetItems(BaseModel):
     item_id_list: List[int]
+    user_total_cost: float
 
 class Item(ItemBase):
     id: int

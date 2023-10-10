@@ -6,11 +6,11 @@ from sqlalchemy.orm import mapped_column
 from ..base_model import Base
 from sqlalchemy.orm import relationship
 from .room import user_room_association
-from .receipt import user_item_association, user_receipt_association
+from .receipt import user_item_association, UserReceiptAssociation
 
 if TYPE_CHECKING:
     from .room import Room  # Import Room only for type checking
-    from .receipt import Item, Receipt  # Import Item only for type checking
+    from .receipt import Item, Receipt, UserReceiptAssociation  # Import Item only for type checking
 
 class User(Base):
     __tablename__ = "users"
@@ -36,13 +36,11 @@ class User(Base):
         back_populates="users"
     )
 
-    # Establish a many-to-many relationship with Receipt
     receipts: Mapped[List["Receipt"]] = relationship(
-        "Receipt",
-        secondary=user_receipt_association,
-        back_populates="users"
+        secondary="user_receipt", back_populates="users", viewonly=True
     )
 
+    receipt_associations: Mapped[List["UserReceiptAssociation"]] = relationship(back_populates="user")
     
 
     
