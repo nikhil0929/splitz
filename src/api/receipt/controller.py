@@ -75,8 +75,8 @@ class ReceiptController:
             data = self.service.get_user_and_receipt(receipt_id, usr["id"], room_code)
             if data is None:
                 raise HTTPException(status_code=500, detail="Error getting user items - user is not in room code")
-            return {"receipt": data[0], "user": data[1], "user_total_cost": data[2]}
-        
+            # (user, receipt, user_items, cost)
+            return {"user": data[0], "receipt": data[1], "user_items": data[2], "user_total_cost": data[3]}         
         
 
             

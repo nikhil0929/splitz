@@ -191,8 +191,11 @@ class Receipt(Base):
                 user_stmt = select(User).where(User.id == user_id)
                 user = session.execute(user_stmt).scalars().first()
 
+                room_stmt = select(Room).where(Room.room_code == room_code)
+                room = session.execute(room_stmt).scalars().first()
+
                 # check if user is a part of this room
-                if user.room_code != room_code:
+                if user not in room.users:
                     return None
                 
                 # Hold a reference to the Receipt object
@@ -204,7 +207,11 @@ class Receipt(Base):
                 user_rcpt = session.execute(user_rcpt_stmt).scalars().first()
                 cost = user_rcpt.receipt_total_cost
 
-                return (receipt, user, cost)
+                 # Get items that belong to the user for the given receipt
+                items_stmt = select(Item).join(Item.users).where(User.id == user_id).where(Item.receipt_id == receipt_id)
+                user_items = session.execute(items_stmt).scalars().all()
+
+                return (user, receipt, user_items, cost)
             except Exception as e:
                 logging.error(f"receipt.services.get_user_items(): Error getting items for user - {e}")
                 return None
