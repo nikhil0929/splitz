@@ -18,6 +18,7 @@ class User(Base):
     name: Mapped[Optional[str]] = mapped_column(String(50))
     phone_number: Mapped[str] = mapped_column(String(30), unique=True)
     email: Mapped[Optional[str]]
+    username: Mapped[Optional[str]] = mapped_column(String(50), unique=True)
     # addresses: Mapped[List["Address"]] = relationship(
     #     back_populates="users", cascade="all, delete-orphan"
     # )
