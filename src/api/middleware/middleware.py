@@ -40,6 +40,11 @@ class JWTMiddleware(BaseHTTPMiddleware):
         
         try:
             auth_token = bearer_token.split(" ")[1].strip()
+            if auth_token is None or auth_token == "" or auth_token == "null":
+                return JSONResponse(status_code=HTTP_401_UNAUTHORIZED, content={
+                    "detail": "Missing access token",
+                "body": "Missing access token"
+            })
             is_valid = self.jwt_authenticator.verify_access_token(auth_token)
             if not is_valid:
                 return JSONResponse(status_code=HTTP_401_UNAUTHORIZED, content={
