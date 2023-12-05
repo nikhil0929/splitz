@@ -8,6 +8,7 @@ from jwt import ImmatureSignatureError, InvalidAlgorithmError, InvalidAudienceEr
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from fastapi.security.utils import get_authorization_scheme_param
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
+import re
 
 
 class JWTMiddleware(BaseHTTPMiddleware):
@@ -20,13 +21,13 @@ class JWTMiddleware(BaseHTTPMiddleware):
         self.jwt_authenticator = jwt_authenticator
         self.allowed_paths = ["/user/initialize-verification",
                               "/user/complete-verification",
-                              "/receipts/receive-receipt",
                               "/docs",
                               "/openapi.json"]
-
+        self.allowed_pattern = re.compile(r"^/receipts/.+/send-receipt$")
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint):
-        
         if request.url.path in self.allowed_paths:
+            return await call_next(request)
+        if self.allowed_pattern.match(request.url.path):
             return await call_next(request)
         if request.method == "OPTIONS":
             return await call_next(request)
@@ -52,6 +53,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 "body": "Access token invalid"
             })
             token_payload = self.jwt_authenticator.decode_access_token(auth_token)
+            
         except (ExpiredSignatureError,
                 ImmatureSignatureError,
                 InvalidAlgorithmError,
@@ -62,7 +64,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 "detail": str(error),
                 "body": str(error)
                 })
-        else:
-            request.state.user = token_payload["usr"]
-            response = await call_next(request)
-        return response
+    
+        
+        request.state.user = token_payload["usr"]
+        my_res = await call_next(request)
+        return my_res

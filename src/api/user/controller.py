@@ -44,6 +44,8 @@ class UserController:
         async def get_current_active_user(request: Request):
             jwt_user = request.state.user
             usr = self.service.get_user(jwt_user["id"])
+            if usr is None:
+                raise HTTPException(status_code=404, detail="User not found")
             return usr
         
         # reads user jwt and updates either name or email based on passed body data

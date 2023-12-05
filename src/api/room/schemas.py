@@ -14,8 +14,10 @@ class RoomJoin(BaseModel):
     room_password: str
 
 class Room(RoomBase):
+    id: int
     room_code: str
     room_owner_id: int
+    num_members: int
 
     class Config:
         from_attributes = True
@@ -26,8 +28,3 @@ class RoomUser(BaseModel):
 
     class Config:
         from_attributes = True
-
-class ReceiptUpload(BaseModel):
-    room_code: str
-    receipt_img_url: str
-

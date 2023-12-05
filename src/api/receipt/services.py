@@ -18,8 +18,12 @@ import os
 from io import BytesIO
 
 class ReceiptService:
-    def __init__(self, db_engine):
+    def __init__(self, db_engine, s3_access_key, s3_secret_key, bucket_name):
         self.db_engine = db_engine.get_engine()
+        self.ph = PasswordHasher()
+        self.s3_access_key = s3_access_key
+        self.s3_secret_key = s3_secret_key
+        self.bucket_name = bucket_name
 
 
     '''
@@ -58,7 +62,7 @@ class Receipt(Base):
         return f"Receipt(id={self.id!r}, name={self.receipt_name!r}, room_id={self.room_id!r} )"
         
     '''
-    def create_receipt(self, room_code: str, receipt_name: str, items_dict: dict) -> Receipt:
+    def create_receipt(self, room_code: str, receipt_name: str, receipt_dict: dict) -> Receipt:
         with Session(self.db_engine) as session:
             try:
                 # Get receipt room
@@ -71,7 +75,7 @@ class Receipt(Base):
 
                 # Create items for receipt
                 items_list = []
-                for item_name, (item_cost, item_quantity) in items_dict.items():
+                for item_name, (item_cost, item_quantity) in receipt_dict.items():
                     item = Item(item_name=item_name, item_cost=item_cost, item_quantity=item_quantity)
                     items_list.append(item)
                     
@@ -118,6 +122,22 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(e)
                 return None
+            
+    # get list of all receipts for the current user from the UserReceiptAssociation
+    def get_user_receipts(self, user_id: int) -> List[Receipt]:
+        with Session(self.db_engine) as session:
+            try:
+                stmt = select(UserReceiptAssociation).where(UserReceiptAssociation.user_id == user_id)
+                associations = session.scalars(stmt).all()
+                receipts = []
+                for assoc in associations:
+                    stmt = select(Receipt).where(Receipt.id == assoc.receipt_id)
+                    receipt = session.scalars(stmt).first()
+                    receipts.append(receipt)
+                return receipts
+            except Exception as e:
+                logging.error(f"receipt.services.get_user_receipts(): Error getting user receipts - {e}")
+                return []
 
             
     def get_items(self, receipt_id: int) -> List[Item]:
@@ -215,6 +235,71 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(f"receipt.services.get_user_items(): Error getting items for user - {e}")
                 return None
+            
+    
+    ## adds a receipt to the appropriate s3 bucket for the room with the given room code
+    ## NOTE: adding an image to a bucket folder causes an lambda function event to trigger for processing
+    ## the receipt. The lambda function processes the receipt and sends the JSON data back to this server to
+    ## to return to the client. USE Boto3 package for S3 file handling
+    # 
+    # For right now, implement dummy function in AWS Lambda that returns random JSON data. 
+    def add_receipt_to_s3_room(self, room_code: str, receipt_img: UploadFile) -> bool:
+        # Initialize the S3 client
+        s3 = boto3.client('s3', aws_access_key_id=self.s3_access_key, aws_secret_access_key=self.s3_secret_key)
+
+        # Define the bucket name and the file name (you can customize this)
+        bucket_name = self.bucket_name
+        file_name = f"{room_code}/{receipt_img.filename}"  # This will save the image in a folder named after the room_code
+
+        try:
+            # Upload the file to S3
+            s3.upload_fileobj(receipt_img.file, bucket_name, file_name)
+
+            # Here, you can trigger the AWS Lambda function if need be
+            # For now, as you mentioned, we'll assume the Lambda function is triggered automatically upon file upload
+
+            logging.info(f"room.services.add_receipt_to_s3_room(): Receipt uploaded to {room_code} folder in S3")
+            return True
+
+        except NoCredentialsError:
+            logging.error("room.services.add_receipt_to_s3_room(): Missing AWS credentials")
+            return False
+        except Exception as e:
+            logging.error(f"room.services.add_receipt_to_s3_room(): An error occurred: {e}")
+            return False
+        
+
+    def download_receipts_from_s3_room(self, room_code: str) -> List[Tuple[str, BytesIO]]:
+        """
+        Download all receipt images from the specified room_code folder in the S3 bucket.
+        :param room_code: The code of the room.
+        :return: A list of tuples containing filename and the corresponding file content.
+        """
+        # Initialize the S3 client
+        s3 = boto3.client('s3', aws_access_key_id=self.s3_access_key, aws_secret_access_key=self.s3_secret_key)
+
+        try:
+            # List objects in the specified folder
+            response = s3.list_objects_v2(Bucket=self.bucket_name, Prefix=f"{room_code}/")
+
+            # Check if the response contains 'Contents' key
+            if 'Contents' not in response:
+                logging.warning(f"room.services.download_receipts_from_s3_room(): No receipts found for room {room_code}")
+                return []
+
+            file_contents = []
+            for content in response['Contents']:
+                file_name = content['Key'].split('/')[-1]  # Extract just the file name from the Key
+                file_obj = BytesIO()
+                s3.download_fileobj(self.bucket_name, content['Key'], file_obj)
+                file_contents.append((file_name, file_obj))
+
+            logging.info(f"room.services.download_receipts_from_s3_room(): Downloaded {len(file_contents)} receipts for room {room_code}")
+            return file_contents
+
+        except Exception as e:
+            logging.error(f"room.services.download_receipts_from_s3_room(): An error occurred: {e}")
+            return []
 
     ## HELPER FUNCTIONS ##
     def is_user_in_room(self, user_id: int, room_code: str) -> bool:
@@ -230,3 +315,30 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(e)
                 return False
+            
+    def parse_receipt(self, room_code: str, receipt_img: UploadFile) -> dict:
+        # Parse the receipt and return a Receipt object
+        # For now, we'll just return a dummy Receipt dictionary
+        sample_receipt_dict = {
+            "Merchant Name": "DIN TAI FUNG",
+            "Total Amount": 181.06,
+            "Tax Amount": 14.26,
+            "Date": "2023-07-18",
+            "Items": [
+                { "Name": "Seaweed & Beancurd Salad", "Price": 7.5, "Quantity": 1 },
+                { "Name": "Sweet & Sour Pork Baby Back Ribs", "Price": 14.5, "Quantity": 1 },
+                { "Name": "Hot & Sour Soup", "Price": 12.5, "Quantity": 1 },
+                { "Name": "Pork Xiao Long Bao", "Price": 15.5, "Quantity": 1 },
+                { "Name": "Sticky Rice & Pork Shao Mai", "Price": 10.5, "Quantity": 1 },
+                { "Name": "Taiwanese Cabbage w / Garlic", "Price": 14.0, "Quantity": 1 },
+                { "Name": "Vegan Dumplings", "Price": 15.5, "Quantity": 1 },
+                { "Name": "Shrimp & Pork Spicy Wontons", "Price": 15.0, "Quantity": 1 },
+                { "Name": "Pork Chop Fried Rice", "Price": 18.0, "Quantity": 1 },
+                { "Name": "Chicken Shanghai Rice Cakes", "Price": 16.0, "Quantity": 1 },
+            ],
+        }
+
+        return sample_receipt_dict
+
+            
+    

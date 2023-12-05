@@ -40,3 +40,7 @@ class Receipt(ReceiptNoItems):
 
     class Config:
         from_attributes = True
+
+class ReceiptUpload(BaseModel):
+    room_code: str
+    receipt_img_url: str

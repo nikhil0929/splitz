@@ -13,6 +13,7 @@ from src.api.user.controller import UserController
 from src.api.room.services import RoomService
 from src.api.room.controller import RoomController
 from src.api.middleware.middleware import JWTMiddleware
+import logging
 
 import imageio as iio
 import io
@@ -49,6 +50,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 def main():
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',filename='splitz_d.log', encoding='utf-8', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
+
     twilio_auth = TwilioAuthenticator(account_sid, auth_token, service_sid)
     jwt_auth = JWTAuthenticator(jwt_secret, jwt_algorithm)
 
@@ -66,8 +69,8 @@ def main():
     splitz_db.run_migrations()
 
     user_service = UserService(splitz_db, twilio_auth, jwt_auth)
-    room_service = RoomService(splitz_db, s3_access_key, s3_secret_key, bucket_name)
-    receipt_service = ReceiptService(splitz_db)
+    room_service = RoomService(splitz_db)
+    receipt_service = ReceiptService(splitz_db, s3_access_key, s3_secret_key, bucket_name)
 
     # file_paths = room_service.download_receipts_from_s3_room("NWBAQ3")
     # print(file_paths)

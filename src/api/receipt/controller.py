@@ -17,6 +17,12 @@ class ReceiptController:
 
     def initialize_routes(self):
 
+        # get all receipts from all rooms for a given user
+        @self.router.get("/receipts-list", response_model=List[schemas.ReceiptNoItems])
+        def get_all_receipts(request: Request):
+            usr = request.state.user
+            return self.service.get_user_receipts(usr["id"])
+
         # this is for the AWS lambda function to use
         @self.router.post("/{room_code}/send-receipt")
         def receive_receipt(room_code: str, receipt: schemas.ReceiptCreate):
@@ -41,7 +47,7 @@ class ReceiptController:
             # print(rct)
             return rcts
         
-        @self.router.get("/{room_code}/receipt/{receipt_id}", response_model=schemas.Receipt)
+        @self.router.get("/{room_code}/receipt/{receipt_id}")
         def get_receipt(receipt_id: int, room_code: str, request: Request):
             # Get all items from receipt
             # make sure user is part of this room
@@ -76,8 +82,28 @@ class ReceiptController:
             if data is None:
                 raise HTTPException(status_code=500, detail="Error getting user items - user is not in room code")
             # (user, receipt, user_items, cost)
-            return {"user": data[0], "receipt": data[1], "user_items": data[2], "user_total_cost": data[3]}         
+            return {"user": data[0], "receipt": data[1], "user_items": data[2], "user_total_cost": data[3]}
         
+        @self.router.post("/{room_code}/upload-receipt", response_model=schemas.ReceiptUpload)
+        def upload_receipt_to_room(room_code: str, receipt_img: UploadFile = File(...)):
+            success = self.service.add_receipt_to_s3_room(room_code, receipt_img)
+            if success:
+                receipt_dict = self.service.parse_receipt(room_code, receipt_img)
+                new_rct = self.service.create_receipt(room_code, "", receipt_dict)
+                return {"room_code": room_code, "receipt_img_url": f"/assets/{receipt_img.filename}"}
+            else:
+                raise HTTPException(status_code=500, detail="Failed to upload receipt")
 
+        @self.router.get("/{room_code}/download-receipts", response_model=List[str])
+        def download_receipts_from_room(room_code: str):
+            file_contents = self.service.download_receipts_from_s3_room(room_code)
+            
+            if not file_contents:
+                raise HTTPException(status_code=404, detail="No receipts found for the room")
+
+            # For simplicity, let's send the first file. You can modify this to send multiple files or zip them together.
+            file_name, file_obj = file_contents[0]
+            file_obj.seek(0)  # Reset the file pointer to the beginning
+            return StreamingResponse(file_obj, media_type="image/jpeg", headers={"Content-Disposition": f"attachment; filename={file_name}"})
             
         

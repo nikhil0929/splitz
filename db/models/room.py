@@ -25,6 +25,7 @@ class Room(Base):
     room_name: Mapped[str] = mapped_column(String(50))
     room_password: Mapped[str] = mapped_column(String(100))
     room_owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    num_members: Mapped[int] = mapped_column(Integer, default=1)
 
     # Establish a one to many relationship with receipts. This room can have many receipts
     receipts: Mapped[List["Receipt"]] = relationship("Receipt", back_populates="room")
