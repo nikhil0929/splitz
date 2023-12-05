@@ -15,6 +15,7 @@ from io import BytesIO
 class RoomService:
     def __init__(self, db_engine):
         self.db_engine = db_engine.get_engine()
+        self.ph = PasswordHasher()
 
     # Create a new room from the given room_name, room_password, and user_id.
     # return the newly created room

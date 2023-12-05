@@ -20,7 +20,6 @@ from io import BytesIO
 class ReceiptService:
     def __init__(self, db_engine, s3_access_key, s3_secret_key, bucket_name):
         self.db_engine = db_engine.get_engine()
-        self.ph = PasswordHasher()
         self.s3_access_key = s3_access_key
         self.s3_secret_key = s3_secret_key
         self.bucket_name = bucket_name
@@ -67,24 +66,49 @@ class Receipt(Base):
             try:
                 # Get receipt room
                 stmt = select(Room).where(Room.room_code == room_code)
-                room = session.scalars(stmt).one()
+                room = session.scalars(stmt).first()
 
                 # Get user to assign as receipt owner
                 stmt = select(User).where(User.id == room.room_owner_id)
-                user = session.scalars(stmt).one()
+                user = session.scalars(stmt).first()
 
                 # Create items for receipt
                 items_list = []
-                for item_name, (item_cost, item_quantity) in receipt_dict.items():
-                    item = Item(item_name=item_name, item_cost=item_cost, item_quantity=item_quantity)
+                for item in receipt_dict["items"]:
+                    item = Item(item_name=item["name"], item_cost=item["price"], item_quantity=item["quantity"])
                     items_list.append(item)
-                    
+
+                # id: Mapped[int] = mapped_column(primary_key=True)
+                # receipt_name: Mapped[str] = mapped_column(String(50))
+                # room_code: Mapped[str] = mapped_column(String, ForeignKey("rooms.room_code"))
+                # room: Mapped["Room"] = relationship("Room", back_populates="receipts")
+                # owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+                # owner_name: Mapped[str] = mapped_column(String(50))
+                # merchant_name: Mapped[str] = mapped_column(String(50))
+                # total_amount: Mapped[float] = mapped_column(Float)
+                # tax_amount: Mapped[float] = mapped_column(Float)
+                # tip_amount: Mapped[float] = mapped_column(Float)
+                # date: Mapped[str] = mapped_column(String(50))
                 # Create a new receipt
-                new_receipt = Receipt(receipt_name=receipt_name, room_code=room_code, items=items_list, owner_id=user.id)
+                new_receipt = Receipt(receipt_name=receipt_name, 
+                                      room_code=room_code, 
+                                      owner_id=user.id, 
+                                      owner_name=user.name, 
+                                      merchant_name=receipt_dict["merchant_name"], 
+                                      total_amount=receipt_dict["total_amount"], 
+                                      tip_amount=receipt_dict["tip_amount"],
+                                      tax_amount=receipt_dict["tax_amount"], 
+                                      date=receipt_dict["date"], 
+                                      items=items_list)
+                # Add the receipt to the room's receipts list (back-populates)
+                room.receipts.append(new_receipt)
+                session.add(room)
                 session.add(new_receipt)
                 session.commit()
                 session.refresh(new_receipt)  # Refresh the object after committing
-                # print(new_receipt)
+                # Commit the session to save both the new receipt and the updated room
+                logging.info("receipt.services.create_receipt(): Receipt created sucessfully")
+                print("in service function: ", new_receipt)
                 return new_receipt
             except Exception as e:
                 ## logging.error("room.services.join_room(): User is already part of the room")
@@ -320,22 +344,63 @@ class Receipt(Base):
         # Parse the receipt and return a Receipt object
         # For now, we'll just return a dummy Receipt dictionary
         sample_receipt_dict = {
-            "Merchant Name": "DIN TAI FUNG",
-            "Total Amount": 181.06,
-            "Tax Amount": 14.26,
-            "Date": "2023-07-18",
-            "Items": [
-                { "Name": "Seaweed & Beancurd Salad", "Price": 7.5, "Quantity": 1 },
-                { "Name": "Sweet & Sour Pork Baby Back Ribs", "Price": 14.5, "Quantity": 1 },
-                { "Name": "Hot & Sour Soup", "Price": 12.5, "Quantity": 1 },
-                { "Name": "Pork Xiao Long Bao", "Price": 15.5, "Quantity": 1 },
-                { "Name": "Sticky Rice & Pork Shao Mai", "Price": 10.5, "Quantity": 1 },
-                { "Name": "Taiwanese Cabbage w / Garlic", "Price": 14.0, "Quantity": 1 },
-                { "Name": "Vegan Dumplings", "Price": 15.5, "Quantity": 1 },
-                { "Name": "Shrimp & Pork Spicy Wontons", "Price": 15.0, "Quantity": 1 },
-                { "Name": "Pork Chop Fried Rice", "Price": 18.0, "Quantity": 1 },
-                { "Name": "Chicken Shanghai Rice Cakes", "Price": 16.0, "Quantity": 1 },
-            ],
+            "merchant_name": "DIN TAI FUNG",
+            "total_amount": 181.06,
+            "tax_amount": 14.26,
+            "tip_amount": 0.00,
+            "date": "2023-07-18",
+            "items": [
+                {
+                    "name": "Seaweed & Beancurd Salad",
+                    "price": 7.5,
+                    "quantity": 1
+                },
+                {
+                    "name": "Sweet & Sour Pork Baby Back Ribs",
+                    "price": 14.5,
+                    "quantity": 1
+                },
+                {
+                    "name": "Hot & Sour Soup",
+                    "price": 12.5,
+                    "quantity": 1
+                },
+                {
+                    "name": "Pork Xiao Long Bao",
+                    "price": 15.5,
+                    "quantity": 1
+                },
+                {
+                    "name": "Sticky Rice & Pork Shao Mai",
+                    "price": 10.5,
+                    "quantity": 1
+                },
+                {
+                    "name": "Taiwanese Cabbage w / Garlic",
+                    "price": 14.0,
+                    "quantity": 1
+                },
+                {
+                    "name": "Vegan Dumplings",
+                    "price": 15.5,
+                    "quantity": 1
+                },
+                {
+                    "name": "Shrimp & Pork Spicy Wontons",
+                    "price": 15.0,
+                    "quantity": 1
+                },
+                {
+                    "name": "Pork Chop Fried Rice",
+                    "price": 18.0,
+                    "quantity": 1
+                },
+                {
+                    "name": "Chicken Shanghai Rice Cakes",
+                    "price": 16.0,
+                    "quantity": 1
+                }
+            ]
         }
 
         return sample_receipt_dict

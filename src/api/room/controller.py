@@ -16,7 +16,6 @@ class RoomController:
         self.initialize_routes()
 
     def initialize_routes(self):
-
         @self.router.post("/create", response_model=schemas.Room)
         def create_room(room: schemas.RoomCreate, request: Request):
             jwt_user = request.state.user

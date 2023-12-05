@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, Request, HTTPException, status, UploadFile, File, Depends
+from fastapi import APIRouter, Request, HTTPException, status, UploadFile, File, Depends, Body
 from fastapi.responses import StreamingResponse, Response
 from . import schemas
 from typing import List
@@ -25,13 +25,12 @@ class ReceiptController:
 
         # this is for the AWS lambda function to use
         @self.router.post("/{room_code}/send-receipt")
-        def receive_receipt(room_code: str, receipt: schemas.ReceiptCreate):
+        def receive_receipt(room_code: str, payload: dict = Body()):
             # Process the receipt data
             # Create into Item object for each item and add to new Receipt object
             # Then add receipt to room
             # Leave users field empty for now
-            
-            new_rct = self.service.create_receipt(room_code, receipt.receipt_name, receipt.items)
+            new_rct = self.service.create_receipt(room_code, "", payload)
             if not new_rct:
                 raise HTTPException(status_code=500, detail="Error creating receipt")
             return new_rct
@@ -84,13 +83,14 @@ class ReceiptController:
             # (user, receipt, user_items, cost)
             return {"user": data[0], "receipt": data[1], "user_items": data[2], "user_total_cost": data[3]}
         
-        @self.router.post("/{room_code}/upload-receipt", response_model=schemas.ReceiptUpload)
+        @self.router.post("/{room_code}/upload-receipt")
         def upload_receipt_to_room(room_code: str, receipt_img: UploadFile = File(...)):
             success = self.service.add_receipt_to_s3_room(room_code, receipt_img)
             if success:
                 receipt_dict = self.service.parse_receipt(room_code, receipt_img)
                 new_rct = self.service.create_receipt(room_code, "", receipt_dict)
-                return {"room_code": room_code, "receipt_img_url": f"/assets/{receipt_img.filename}"}
+                print("NEW RCT: ", new_rct)
+                return {"room_code": room_code, "receipt_img_url": f"/assets/{receipt_img.filename}", "receipt": new_rct}
             else:
                 raise HTTPException(status_code=500, detail="Failed to upload receipt")
 
