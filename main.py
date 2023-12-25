@@ -13,6 +13,7 @@ from src.api.user.controller import UserController
 from src.api.room.services import RoomService
 from src.api.room.controller import RoomController
 from src.api.middleware.middleware import JWTMiddleware
+from src.api.receipt.receipt_parse import NanonetsReceiptParser
 import logging
 
 import imageio as iio
@@ -44,25 +45,21 @@ s3_access_key = os.getenv("S3_ACCESS_KEY")
 s3_secret_key = os.getenv("S3_SECRET_KEY")
 bucket_name = os.getenv("BUCKET_NAME")
 
+nanonets_url = os.getenv("NANONETS_URL")
+nanonets_api_key = os.getenv("NANONETS_API_KEY")
+
 app = FastAPI()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 def main():
-    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',filename='splitz_d.log', encoding='utf-8', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', encoding='utf-8', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 
     twilio_auth = TwilioAuthenticator(account_sid, auth_token, service_sid)
     jwt_auth = JWTAuthenticator(jwt_secret, jwt_algorithm)
+    receipt_parser = NanonetsReceiptParser(nanonets_url, nanonets_api_key)
 
-    # twilio_auth.create_verification(phone_number)
-    # # # print(os.getenv("TEST_TWILIO_ACCOUNT_SID"))
-
-    # user_input = input("Enter verification code: ")
-    # twilio_auth.check_verification(phone_number, user_input)
-
-    # def get_authenticator():
-    #     return twilio_auth
 
     splitz_db = Database(db_user, db_password, db_host, db_port, db_name)
     # print("DB URL: ", splitz_db.database_url)
@@ -70,49 +67,8 @@ def main():
 
     user_service = UserService(splitz_db, twilio_auth, jwt_auth)
     room_service = RoomService(splitz_db)
-    receipt_service = ReceiptService(splitz_db, s3_access_key, s3_secret_key, bucket_name)
+    receipt_service = ReceiptService(splitz_db, s3_access_key, s3_secret_key, bucket_name, receipt_parser)
 
-    # file_paths = room_service.download_receipts_from_s3_room("NWBAQ3")
-    # print(file_paths)
-
-    # room_service.create_room("Test Room", "password", 1)
-
-    # Read the image as bytes
-    # with open("./assets/banana.jpg", "rb") as image_file:
-    #     image_bytes = image_file.read()
-
-    # # Create a file-like object using io.BytesIO
-    # img = io.BytesIO(image_bytes)
-
-    # class myFile:
-    #     def __init__(self) -> None:
-    #         self.filename = "banana.jpg"
-    #         self.file = img
-    #         self.content_type = "image/jpeg"
-
-    # did_add = room_service.add_receipt_to_s3_room("NWBAQ3", myFile())
-
-    # if did_add:
-    #     print("Receipt added to room successfully")
-    
-
-    # is_joined = room_service.join_room("UQaFrn", "password", 2)
-    # if is_joined:
-    #     print("Room joined successfully")
-    #     rooms = room_service.get_rooms_by_user_id(2)
-    #     print(rooms)
-    # new_user = schemas.UserCreate(
-    #     # name="John Doe",
-    #     phone_number=phone_number,
-    # )
-
-    # usr = user_service.get_user(8)
-    # print("USER: ", usr)
-    # print("NAME: ", new_user.name)
-    # user_service.intialize_verification(phone_number)
-    # user_input = input("Enter verification code: ")
-    # isValid, usr = user_service.check_verification(phone_number, user_input)
-    # print("Is Valid: ", isValid)
 
     user_controller = UserController(user_service)
     room_controller = RoomController(room_service)

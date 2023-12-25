@@ -83,14 +83,26 @@ class ReceiptController:
             # (user, receipt, user_items, cost)
             return {"user": data[0], "receipt": data[1], "user_items": data[2], "user_total_cost": data[3]}
         
+        # rename receipt
+        @self.router.put("/{room_code}/rename-receipt/{receipt_id}")
+        def rename_receipt(room_code: str, receipt_id: int, receipt: schemas.ReceiptBase, request: Request):
+            # make sure user is part of this room
+            usr = request.state.user
+            if not self.service.is_user_in_room(usr["id"], room_code):
+                raise HTTPException(status_code=404, detail="User is not in room")
+            did_rename = self.service.rename_receipt(receipt_id, receipt.receipt_name)
+            if not did_rename:
+                raise HTTPException(status_code=500, detail="Error renaming receipt")
+            return did_rename
+        
         @self.router.post("/{room_code}/upload-receipt")
         def upload_receipt_to_room(room_code: str, receipt_img: UploadFile = File(...)):
-            success = self.service.add_receipt_to_s3_room(room_code, receipt_img)
+            file_content = receipt_img.file.read()
+            success = self.service.add_receipt_to_s3_room(room_code, file_content, receipt_img.filename)
             if success:
-                receipt_dict = self.service.parse_receipt(room_code, receipt_img)
+                receipt_dict = self.service.parse_receipt(room_code, file_content)
                 new_rct = self.service.create_receipt(room_code, "", receipt_dict)
-                print("NEW RCT: ", new_rct)
-                return {"room_code": room_code, "receipt_img_url": f"/assets/{receipt_img.filename}", "receipt": new_rct}
+                return new_rct
             else:
                 raise HTTPException(status_code=500, detail="Failed to upload receipt")
 
@@ -105,5 +117,21 @@ class ReceiptController:
             file_name, file_obj = file_contents[0]
             file_obj.seek(0)  # Reset the file pointer to the beginning
             return StreamingResponse(file_obj, media_type="image/jpeg", headers={"Content-Disposition": f"attachment; filename={file_name}"})
+        
+        # function to add an item to a receipt given a receipt id
+        @self.router.post("/{room_code}/add-item/{receipt_id}")
+        def add_items_to_receipt(items: List[schemas.ItemBase], room_code: str, receipt_id: int, request: Request):
+            # make sure user is part of this room
+            usr = request.state.user
+            if not self.service.is_user_in_room(usr["id"], room_code):
+                raise HTTPException(status_code=404, detail="User is not in room")
+            # check if receipt is in room
+            if not self.service.is_receipt_in_room(receipt_id, room_code):
+                raise HTTPException(status_code=404, detail="Receipt is not in room")
+            items = self.service.add_items_to_receipt(items, receipt_id)
+            if items is None:
+                raise HTTPException(status_code=500, detail="Error adding items to receipt")
+            return items
+
             
         
