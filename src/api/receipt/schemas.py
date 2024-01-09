@@ -5,7 +5,7 @@ from src.api.user import MiniUser
 class ItemBase(BaseModel):
     item_name: str
     item_quantity: int
-    item_cost: float
+    item_price: float
 
 class GetItems(BaseModel):
     item_id_list: List[int]
@@ -21,13 +21,20 @@ class ItemWithUsers(Item):
     users: List[MiniUser]
 
 class UserItem(Item):
-    split_cost: float
+    split_price: float
 
 class ReceiptBase(BaseModel):
     receipt_name: str
 
-class ReceiptCreate(ReceiptBase):
-    items: Dict[str, Tuple[float, int]]
+
+class ReceiptCreate(BaseModel):
+    merchant_name: str
+    total_amount: float
+    tax_amount: float
+    tip_amount: float
+    date: str
+    items: List[ItemBase]
+
 
 class ReceiptNoItems(ReceiptBase):
     id: int
@@ -40,3 +47,7 @@ class Receipt(ReceiptNoItems):
 
     class Config:
         from_attributes = True
+
+class ReceiptUpload(BaseModel):
+    room_code: str
+    receipt_img_url: str

@@ -13,13 +13,17 @@ from botocore.exceptions import NoCredentialsError
 from sqlalchemy.orm import Session, joinedload, selectinload, load_only
 from sqlalchemy import select, insert
 from psycopg2.errors import UniqueViolation
-import logging, random, string
+import logging, random, string, json, requests
 import os
 from io import BytesIO
 
 class ReceiptService:
-    def __init__(self, db_engine):
+    def __init__(self, db_engine, s3_access_key, s3_secret_key, bucket_name, receipt_parser):
         self.db_engine = db_engine.get_engine()
+        self.s3_access_key = s3_access_key
+        self.s3_secret_key = s3_secret_key
+        self.bucket_name = bucket_name
+        self.receipt_parser = receipt_parser
 
 
     '''
@@ -58,30 +62,46 @@ class Receipt(Base):
         return f"Receipt(id={self.id!r}, name={self.receipt_name!r}, room_id={self.room_id!r} )"
         
     '''
-    def create_receipt(self, room_code: str, receipt_name: str, items_dict: dict) -> Receipt:
+    def create_receipt(self, room_code: str, receipt_name: str, receipt_dict: dict) -> Receipt:
         with Session(self.db_engine) as session:
             try:
                 # Get receipt room
                 stmt = select(Room).where(Room.room_code == room_code)
-                room = session.scalars(stmt).one()
+                room = session.scalars(stmt).first()
 
                 # Get user to assign as receipt owner
                 stmt = select(User).where(User.id == room.room_owner_id)
-                user = session.scalars(stmt).one()
+                user = session.scalars(stmt).first()
 
                 # Create items for receipt
+                print("Receipt: ", receipt_dict)
                 items_list = []
-                for item_name, (item_cost, item_quantity) in items_dict.items():
-                    item = Item(item_name=item_name, item_cost=item_cost, item_quantity=item_quantity)
+                for item in receipt_dict["items"]:
+                    item = Item(item_name=item["item_name"], item_cost=item["item_price"], item_quantity=item["item_quantity"])
                     items_list.append(item)
-                    
+
                 # Create a new receipt
-                new_receipt = Receipt(receipt_name=receipt_name, room_code=room_code, items=items_list, owner_id=user.id)
+                new_receipt = Receipt(receipt_name=receipt_name, 
+                                      room_code=room_code, 
+                                      owner_id=user.id, 
+                                      owner_name=user.name, 
+                                      merchant_name=receipt_dict["merchant_name"], 
+                                      total_amount=receipt_dict["total_amount"], 
+                                      tip_amount=receipt_dict["tip_amount"],
+                                      tax_amount=receipt_dict["tax_amount"], 
+                                      date=receipt_dict["date"], 
+                                      items=items_list)
+                # Add the receipt to the room's receipts list (back-populates)
+                room.receipts.append(new_receipt)
+                session.add(room)
                 session.add(new_receipt)
-                session.commit()
+                session.commit()  # Commit the session to save both the new receipt and the updated room
                 session.refresh(new_receipt)  # Refresh the object after committing
-                # print(new_receipt)
-                return new_receipt
+
+                logging.info("receipt.services.create_receipt(): Receipt created sucessfully")
+                stmt = select(Receipt).options(joinedload(Receipt.items)).where(Receipt.id == new_receipt.id)
+                rct = session.scalars(stmt).first()
+                return rct
             except Exception as e:
                 ## logging.error("room.services.join_room(): User is already part of the room")
                 logging.error(f"receipt.services.create_receipt(): Error creating receipt - {e}")
@@ -118,6 +138,22 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(e)
                 return None
+            
+    # get list of all receipts for the current user from the UserReceiptAssociation
+    def get_user_receipts(self, user_id: int) -> List[Receipt]:
+        with Session(self.db_engine) as session:
+            try:
+                stmt = select(UserReceiptAssociation).where(UserReceiptAssociation.user_id == user_id)
+                associations = session.scalars(stmt).all()
+                receipts = []
+                for assoc in associations:
+                    stmt = select(Receipt).where(Receipt.id == assoc.receipt_id)
+                    receipt = session.scalars(stmt).first()
+                    receipts.append(receipt)
+                return receipts
+            except Exception as e:
+                logging.error(f"receipt.services.get_user_receipts(): Error getting user receipts - {e}")
+                return []
 
             
     def get_items(self, receipt_id: int) -> List[Item]:
@@ -156,6 +192,7 @@ class Receipt(Base):
                 # Check if the UserReceiptAssociation already exists
                 assoc_stmt = select(UserReceiptAssociation).where(UserReceiptAssociation.user_id == user_id, UserReceiptAssociation.receipt_id == receipt_id)
                 association = session.execute(assoc_stmt).scalars().first()
+
 
                 if association:
                     # Update the receipt_total_cost if the association already exists
@@ -215,7 +252,114 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(f"receipt.services.get_user_items(): Error getting items for user - {e}")
                 return None
+            
+    
+    ## adds a receipt to the appropriate s3 bucket for the room with the given room code
+    ## NOTE: adding an image to a bucket folder causes an lambda function event to trigger for processing
+    ## the receipt. The lambda function processes the receipt and sends the JSON data back to this server to
+    ## to return to the client. USE Boto3 package for S3 file handling
+    # 
+    # For right now, implement dummy function in AWS Lambda that returns random JSON data. 
+    def add_receipt_to_s3_room(self, room_code: str, file_content: bytes, img_filename: str) -> bool:
+        # Initialize the S3 client
+        s3 = boto3.client('s3', aws_access_key_id=self.s3_access_key, aws_secret_access_key=self.s3_secret_key)
 
+        # Define the bucket name and the file name (you can customize this)
+        bucket_name = self.bucket_name
+        file_name = f"{room_code}/{img_filename}"  # This will save the image in a folder named after the room_code
+
+        try:
+            # Upload the file to S3
+            s3.upload_fileobj(BytesIO(file_content), bucket_name, file_name)
+
+            # Here, you can trigger the AWS Lambda function if need be
+            # For now, as you mentioned, we'll assume the Lambda function is triggered automatically upon file upload
+
+            logging.info(f"room.services.add_receipt_to_s3_room(): Receipt uploaded to {room_code} folder in S3")
+            return True
+
+        except NoCredentialsError:
+            logging.error("room.services.add_receipt_to_s3_room(): Missing AWS credentials")
+            return False
+        except Exception as e:
+            logging.error(f"room.services.add_receipt_to_s3_room(): An error occurred: {e}")
+            return False
+        
+
+    def download_receipts_from_s3_room(self, room_code: str) -> List[Tuple[str, BytesIO]]:
+        """
+        Download all receipt images from the specified room_code folder in the S3 bucket.
+        :param room_code: The code of the room.
+        :return: A list of tuples containing filename and the corresponding file content.
+        """
+        # Initialize the S3 client
+        s3 = boto3.client('s3', aws_access_key_id=self.s3_access_key, aws_secret_access_key=self.s3_secret_key)
+
+        try:
+            # List objects in the specified folder
+            response = s3.list_objects_v2(Bucket=self.bucket_name, Prefix=f"{room_code}/")
+
+            # Check if the response contains 'Contents' key
+            if 'Contents' not in response:
+                logging.warning(f"room.services.download_receipts_from_s3_room(): No receipts found for room {room_code}")
+                return []
+
+            file_contents = []
+            for content in response['Contents']:
+                file_name = content['Key'].split('/')[-1]  # Extract just the file name from the Key
+                file_obj = BytesIO()
+                s3.download_fileobj(self.bucket_name, content['Key'], file_obj)
+                file_contents.append((file_name, file_obj))
+
+            logging.info(f"room.services.download_receipts_from_s3_room(): Downloaded {len(file_contents)} receipts for room {room_code}")
+            return file_contents
+
+        except Exception as e:
+            logging.error(f"room.services.download_receipts_from_s3_room(): An error occurred: {e}")
+            return []
+
+    def add_items_to_receipt(self, items: List[schemas.ItemBase], receipt_id: int) -> schemas.Item:
+        with Session(self.db_engine) as session:
+            try:
+                # Get the receipt
+                stmt = select(Receipt).where(Receipt.id == receipt_id)
+                receipt = session.scalars(stmt).first()
+
+                # Create items for receipt
+                items_list = []
+                for item in items:
+                    item = Item(item_name=item.item_name, item_cost=item.item_price, item_quantity=item.item_quantity)
+                    items_list.append(item)
+
+                ## CODE BREAK FROM THIS POINT ONWARDS WITH '500 internal server error'
+
+                # Add the items to the receipt's items list (back-populates)
+                receipt.items.extend(items_list)
+                session.add(receipt)
+                session.commit()
+                logging.info("receipt.services.add_items_to_receipt(): Items added to receipt sucessfully")
+
+                #query for the JUST the items that were just added
+                stmt = select(Item).where(Item.receipt_id == receipt_id).order_by(Item.id.desc()).limit(len(items))
+                items = session.scalars(stmt).all()
+                return items
+            except Exception as e:
+                logging.error(f"receipt.services.add_items_to_receipt(): Error adding items to receipt - {e}")
+                return None
+            
+    def rename_receipt(self, receipt_id: int, receipt_name: str) -> bool:
+        with Session(self.db_engine) as session:
+            try:
+                stmt = select(Receipt).where(Receipt.id == receipt_id)
+                receipt = session.scalars(stmt).first()
+                receipt.receipt_name = receipt_name
+                session.commit()
+                logging.info("receipt.services.rename_receipt(): Receipt renamed sucessfully")
+                return True
+            except Exception as e:
+                logging.error(f"receipt.services.rename_receipt(): Error renaming receipt - {e}")
+                return False
+    
     ## HELPER FUNCTIONS ##
     def is_user_in_room(self, user_id: int, room_code: str) -> bool:
         with Session(self.db_engine) as session:
@@ -230,3 +374,22 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(e)
                 return False
+            
+    def is_receipt_in_room(self, receipt_id: int, room_code: str) -> bool:
+        with Session(self.db_engine) as session:
+            try:
+                stmt = select(Receipt).where(Receipt.id == receipt_id)
+                receipt = session.scalars(stmt).one()
+                return receipt.room_code == room_code
+            except Exception as e:
+                logging.error(e)
+                return False
+            
+    def parse_receipt(self, room_code: str, file_content: bytes) -> dict:
+
+        parsed_receipt = self.receipt_parser.parse_receipt(file_content)
+
+        return parsed_receipt
+
+            
+    

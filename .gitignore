@@ -3,3 +3,6 @@ venv
 splitz_ec2.pem
 __pycache__/
 *.py[cod]
+*.so
+*.log
+*.*.py[cod]

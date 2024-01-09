@@ -16,7 +16,6 @@ class RoomController:
         self.initialize_routes()
 
     def initialize_routes(self):
-
         @self.router.post("/create", response_model=schemas.Room)
         def create_room(room: schemas.RoomCreate, request: Request):
             jwt_user = request.state.user
@@ -32,6 +31,7 @@ class RoomController:
         def get_rooms_by_user_id(user_id: int):
             return self.service.get_rooms_by_user_id(user_id)
 
+
         @self.router.get("/members/{room_id}", response_model=List[schemas.RoomUser])
         def get_users_by_room_id(room_id: int):
             return self.service.get_users_by_room_id(room_id)
@@ -45,23 +45,21 @@ class RoomController:
             else:
                 return Response(content="Successfully joined room", status_code=status.HTTP_200_OK)
 
-        @self.router.post("/{room_code}/upload-receipt", response_model=schemas.ReceiptUpload)
-        def upload_receipt_to_room(room_code: str, receipt_img: UploadFile = File(...)):
-            success = self.service.add_receipt_to_s3_room(room_code, receipt_img)
-            if success:
-                return {"room_code": room_code, "receipt_img_url": f"/assets/{receipt_img.filename}"}
-            else:
-                raise HTTPException(status_code=500, detail="Failed to upload receipt")
-
-        @self.router.get("/{room_code}/download-receipts", response_model=List[str])
-        def download_receipts_from_room(room_code: str):
-            file_contents = self.service.download_receipts_from_s3_room(room_code)
-            
-            if not file_contents:
-                raise HTTPException(status_code=404, detail="No receipts found for the room")
-
-            # For simplicity, let's send the first file. You can modify this to send multiple files or zip them together.
-            file_name, file_obj = file_contents[0]
-            file_obj.seek(0)  # Reset the file pointer to the beginning
-            return StreamingResponse(file_obj, media_type="image/jpeg", headers={"Content-Disposition": f"attachment; filename={file_name}"})
-
+        @self.router.get("/", response_model=List[schemas.Room])
+        async def get_current_active_user(request: Request):
+            jwt_user = request.state.user
+            return self.service.get_rooms_by_user_id(jwt_user["id"])
+        
+        @self.router.get("/{room_code}/user-costs", response_model=dict)
+        async def get_user_costs(room_code: str):
+            """
+            Get a list of users and their total costs due across all receipts in the given room.
+            """
+            try:
+                user_costs = self.service.get_user_costs_by_room_code(room_code)
+                if user_costs:
+                    return user_costs
+                else:
+                    raise HTTPException(status_code=404, detail="Room not found or no users in room")
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))

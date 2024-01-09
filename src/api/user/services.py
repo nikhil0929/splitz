@@ -113,7 +113,7 @@ class UserService:
                 return None
 
     # Update a user in the database using the 'UserUpdate' schema. 
-    def update_user(self, id: int, email: str = None, name: str = None) -> User:
+    def update_user(self, id: int, email: str = None, name: str = None, username: str = None) -> User:
         with Session(self.db_engine) as db:
             db_user = self.get_user(id)
             if not db_user:
@@ -122,6 +122,8 @@ class UserService:
                 db_user.email = email
             if name:
                 db_user.name = name
+            if username:
+                db_user.username = username
             try:
                 db.add(db_user)
                 db.commit()

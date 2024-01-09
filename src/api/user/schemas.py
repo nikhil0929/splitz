@@ -22,6 +22,7 @@ class UserLogin(UserBase):
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
+    username: Optional[str] = None
 
 
 # For 'reading' (GET) a user
@@ -30,6 +31,7 @@ class User(UserBase):
 
     name: Optional[str] = None
     email: Optional[str] = None
+    username: Optional[str] = None
 
     class Config:
         from_attributes = True
