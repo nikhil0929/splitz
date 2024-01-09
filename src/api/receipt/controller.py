@@ -101,7 +101,7 @@ class ReceiptController:
             success = self.service.add_receipt_to_s3_room(room_code, file_content, receipt_img.filename)
             if success:
                 receipt_dict = self.service.parse_receipt(room_code, file_content)
-                new_rct = self.service.create_receipt(room_code, "", receipt_dict)
+                new_rct = self.service.create_receipt(room_code, receipt_dict["merchant_name"], receipt_dict)
                 return new_rct
             else:
                 raise HTTPException(status_code=500, detail="Failed to upload receipt")
