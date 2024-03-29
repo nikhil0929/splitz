@@ -2,7 +2,7 @@
 .env
 .venv
 env/
-venv/
+splitz_env/
 ENV/
 env.bak/
 venv.bak/

@@ -13,26 +13,23 @@ user_room_association = Table(
     Column("user_room_price", Float, default=0.0)
 )
 
-if TYPE_CHECKING:
-    from .user import User  # Import Room only for type checking
-    from .receipt import Receipt
 
 class Room(Base):
     __tablename__ = "rooms"
 
-    id: Mapped[int] = mapped_column(primary_key=True)  # Auto-incrementing primary key
-    room_code: Mapped[str] = mapped_column(String(6), unique=True)
-    room_name: Mapped[str] = mapped_column(String(50))
-    room_password: Mapped[str] = mapped_column(String(100))
-    room_owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
-    num_members: Mapped[int] = mapped_column(Integer, default=1)
+    id = mapped_column(Integer, primary_key=True)  # Auto-incrementing primary key
+    room_code = mapped_column(String(6), unique=True)
+    room_name = mapped_column(String(50))
+    room_password = mapped_column(String(100))
+    room_owner_id = mapped_column(Integer, ForeignKey("users.id"))
+    num_members = mapped_column(Integer, default=1)
 
     # Establish a one to many relationship with receipts. This room can have many receipts
-    receipts: Mapped[List["Receipt"]] = relationship("Receipt", back_populates="room")
+    receipts = relationship(List["Receipt"], back_populates="room")
 
     # Establish the many-to-many relationship with User
-    users: Mapped[List["User"]] = relationship(
-        "User",
+    users = relationship(
+        List["User"],
         secondary=user_room_association,
         back_populates="rooms"
     )
