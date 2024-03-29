@@ -194,3 +194,33 @@ class UserService:
             except:
                 logging.error("user.services.update_user(): User update failed")
                 return None
+            
+    def add_friend(self, user_id: int, friend_id: int) -> User:
+        """
+        Add a friend to a user.
+
+        Args:
+            user_id (int): The ID of the user to add a friend to.
+            friend_id (int): The ID of the friend to add.
+
+        Returns:
+            User: The updated user object.
+        """
+        with Session(self.db_engine) as db:
+            user = self.get_user(user_id)
+            friend = self.get_user(friend_id)
+
+            if not user or not friend:
+                logging.error("user.services.add_friend(): User or friend not found")
+                return None
+
+            user.friends.append(friend)
+            try:
+                db.add(user)
+                db.commit()
+                logging.info("user.services.add_friend(): Friend added successfully")
+                db.refresh(user)
+                return user
+            except:
+                logging.error("user.services.add_friend(): Failed to add friend")
+                return None

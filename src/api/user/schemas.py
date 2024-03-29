@@ -47,3 +47,7 @@ class MiniUser(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class UserAddFriend(BaseModel):
+    user_id: int
+    friend_id: int

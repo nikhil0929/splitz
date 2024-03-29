@@ -86,3 +86,10 @@ class UserController:
                 raise HTTPException(status_code=404, detail="User not found")
             return db_user
         
+
+        @self.router.post("/add-friend", response_model=schemas.User)
+        async def add_friend(user: schemas.UserAddFriend):
+            updated_user = self.service.add_friend(user.user_id, user.friend_id)
+            if updated_user is None:
+                raise HTTPException(status_code=404, detail="User or friend not found")
+            return updated_user
