@@ -1,7 +1,9 @@
+from io import BytesIO
 from . import schemas
 from db.models.user import User
 from typing import Tuple
-
+import boto3
+from botocore.exceptions import NoCredentialsError
 
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -12,10 +14,11 @@ class UserService:
     """
     Initialize UserService with db_engine, twilio_authenticator, and jwt_authenticator.
     """
-    def __init__(self, db_engine, twilio_authenticator, jwt_authenticator):
+    def __init__(self, db_engine, twilio_authenticator, jwt_authenticator, bucket_name):
         self.db_engine = db_engine.get_engine()
         self.twilio_authenticator = twilio_authenticator
         self.jwt_authenticator = jwt_authenticator
+        self.bucket_name = bucket_name
 
     def get_user(self, user_id: int) -> User:
         """
@@ -224,3 +227,52 @@ class UserService:
             except:
                 logging.error("user.services.add_friend(): Failed to add friend")
                 return None
+            
+    def upload_profile_picture(self, user_id: int, file_content: bytes) -> bool:
+        """
+        Upload a user's profile picture to an AWS S3 bucket.
+
+        Args:
+            user_id (int): The ID of the user.
+            file_content (bytes): The binary content of the image file.
+
+        Returns:
+            bool: True if the upload is successful, False otherwise.
+        """
+        # Initialize the S3 client
+        s3 = boto3.client('s3', aws_access_key_id=self.s3_access_key, aws_secret_access_key=self.s3_secret_key)
+
+        try:
+            # Upload the file to S3
+            s3.upload_fileobj(BytesIO(file_content), self.bucket_name, str(user_id))
+            logging.info("user.services.upload_profile_picture(): Successfully uploaded image")
+            return True
+        except NoCredentialsError:
+            logging.error("user.services.upload_profile_picture(): No AWS credentials found")
+            return False
+        except Exception as e:
+            logging.error(f"user.services.upload_profile_picture(): An error occurred: {e}")
+            return False
+        
+
+    def get_profile_picture(self, user_id: int) -> bytes:
+        """
+        Retrieve a user's profile picture from an AWS S3 bucket.
+
+        Args:
+            user_id (int): The ID of the user.
+
+        Returns:
+            bytes: The binary content of the image file.
+        """
+        s3 = boto3.client('s3', aws_access_key_id=self.s3_access_key, aws_secret_access_key=self.s3_secret_key)
+
+        try:
+            obj = s3.get_object(Bucket=self.bucket_name, Key=str(user_id))
+            return obj['Body'].read()
+        except NoCredentialsError:
+            logging.error("user.services.get_profile_picture(): No AWS credentials found")
+            return b''
+        except Exception as e:
+            logging.error(f"user.services.get_profile_picture(): An error occurred: {e}")
+            return b''
