@@ -40,7 +40,6 @@ class ReceiptNoItems(ReceiptBase):
     id: int
     room_code: str
     owner_id: int
-    
 
 class Receipt(ReceiptNoItems):
     items: List[ItemWithUsers]

@@ -65,7 +65,7 @@ class Receipt(Base):
     def create_receipt(self, room_code: str, receipt_name: str, receipt_dict: dict) -> Receipt:
         with Session(self.db_engine) as session:
             try:
-                # Get receipt room
+                # Get room
                 stmt = select(Room).where(Room.room_code == room_code)
                 room = session.scalars(stmt).first()
 
