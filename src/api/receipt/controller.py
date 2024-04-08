@@ -1,13 +1,16 @@
 
 from fastapi import APIRouter, Request, HTTPException, status, UploadFile, File, Depends, Body
 from fastapi.responses import StreamingResponse, Response
+
+from src.api.receipt.services import ReceiptService
+
 from . import schemas
 from typing import List
 import logging
 
 class ReceiptController:
 
-    def __init__(self, service):
+    def __init__(self, service: ReceiptService):
         self.service = service
         self.router = APIRouter(
             prefix="/receipts",

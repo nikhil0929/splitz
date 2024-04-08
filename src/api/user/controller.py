@@ -1,5 +1,6 @@
 from fastapi import HTTPException, APIRouter, Response, status, Request
 from sqlalchemy.orm import Session
+from src.api.user.services import UserService
 from src.auth.sms_verification import TwilioAuthenticator
 from . import schemas
 from fastapi import Depends
@@ -8,7 +9,7 @@ from fastapi import Depends
 
 class UserController:
 
-    def __init__(self, service):
+    def __init__(self, service: UserService):
         self.service = service
         self.router = APIRouter(
             prefix="/user",

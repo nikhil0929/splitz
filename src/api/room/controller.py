@@ -2,12 +2,14 @@
 
 from fastapi import APIRouter, Request, HTTPException, status, UploadFile, File, Depends
 from fastapi.responses import StreamingResponse, Response
+
+from src.api.room.services import RoomService
 from . import schemas
 from typing import List
 
 class RoomController:
 
-    def __init__(self, service):
+    def __init__(self, service: RoomService):
         self.service = service
         self.router = APIRouter(
             prefix="/room",
@@ -17,27 +19,27 @@ class RoomController:
 
     def initialize_routes(self):
         @self.router.post("/create", response_model=schemas.Room)
-        def create_room(room: schemas.RoomCreate, request: Request):
+        async def create_room(room: schemas.RoomCreate, request: Request):
             jwt_user = request.state.user
             # print("USER ID: ", jwt_user["id"])
             new_room = self.service.create_room(room.room_name, room.room_password, jwt_user["id"])
             return new_room
 
         @self.router.get("/{room_code}", response_model=schemas.Room)
-        def get_room_by_code(room_code: str):
+        async def get_room_by_code(room_code: str):
             return self.service.get_room_by_code(room_code)
 
         @self.router.get("/user/{user_id}", response_model=List[schemas.Room])
-        def get_rooms_by_user_id(user_id: int):
+        async def get_rooms_by_user_id(user_id: int):
             return self.service.get_rooms_by_user_id(user_id)
 
 
         @self.router.get("/members/{room_id}", response_model=List[schemas.RoomUser])
-        def get_users_by_room_id(room_id: int):
+        async def get_users_by_room_id(room_id: int):
             return self.service.get_users_by_room_id(room_id)
 
         @self.router.post("/join")
-        def join_room(room_join: schemas.RoomJoin, request: Request):
+        async def join_room(room_join: schemas.RoomJoin, request: Request):
             jwt_user = request.state.user
             did_join = self.service.join_room(room_join.room_code, room_join.room_password, jwt_user["id"])
             if not did_join:
