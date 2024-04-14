@@ -20,7 +20,6 @@ import imageio as iio
 import io
 
 
-
 # from fastapi import FastAPI, Depends
 # from src.api.user import controller as user_controller
 
@@ -54,21 +53,29 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 def main():
-    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', encoding='utf-8', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
+                        encoding='utf-8', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 
     twilio_auth = TwilioAuthenticator(account_sid, auth_token, service_sid)
-    jwt_auth = JWTAuthenticator(jwt_secret, jwt_algorithm)
+
     receipt_parser = NanonetsReceiptParser(nanonets_url, nanonets_api_key)
 
+    # db_parameters = {
+    #     "db_user": db_user,
+    #     "db_password": db_password,
+    #     "db_host": db_host,
+    #     "db_port": db_port,
+    #     "db_name": db_name
+    # }
 
     splitz_db = Database(db_user, db_password, db_host, db_port, db_name)
     # print("DB URL: ", splitz_db.database_url)
     splitz_db.run_migrations()
-
-    user_service = UserService(splitz_db, twilio_auth, jwt_auth)
+    jwt_auth = JWTAuthenticator(splitz_db, jwt_secret, jwt_algorithm)
+    user_service = UserService(splitz_db, twilio_auth, jwt_auth, 'user_profile_pics')
     room_service = RoomService(splitz_db)
-    receipt_service = ReceiptService(splitz_db, s3_access_key, s3_secret_key, bucket_name, receipt_parser)
-
+    receipt_service = ReceiptService(
+        splitz_db, s3_access_key, s3_secret_key, bucket_name, receipt_parser)
 
     user_controller = UserController(user_service)
     room_controller = RoomController(room_service)

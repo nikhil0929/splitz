@@ -150,7 +150,7 @@ class UserService:
             User: The created user object.
         """
         # db_user = user_model(**user.dict())
-
+        print('user.', user)
         with Session(self.db_engine) as db:
             db_user = User(**user.model_dump())
             print(db_user)

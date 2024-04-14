@@ -1,12 +1,13 @@
 # Environments
 .env
-.venv
+venv
 env/
 splitz_env/
 ENV/
 env.bak/
 venv.bak/
 splitz_ec2.pem
+PERSONAL_README.md
 
 ### Python template
 
