@@ -25,6 +25,8 @@ class Room(RoomBase):
 class RoomUser(BaseModel):
     id: int
     phone_number: str
+    name: str
+    username: str
 
     class Config:
         from_attributes = True

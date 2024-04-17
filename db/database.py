@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, scoped_session
 import logging
 from .base_model import Base
 from .models import *
@@ -15,16 +16,22 @@ class Database:
             f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
         )
         self.engine = create_engine(self.database_url)
+        self.session_factory = sessionmaker(
+            autocommit=False, autoflush=False, bind=self.engine)
 
     def get_engine(self):
         return self.engine
         
-    # def get_db(self):
-    #     db = self.session_local()
-    #     try:
-    #         yield db
-    #     finally:
-    #         db.close()
+    def get_db(self):
+        session = scoped_session(self.session_factory)()
+        try:
+            yield session
+            session.commit()
+        except:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
     def run_migrations(self):
         Base.metadata.create_all(self.engine)

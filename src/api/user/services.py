@@ -1,6 +1,6 @@
 from . import schemas
 from db.models.user import User
-from typing import Tuple
+from typing import List, Tuple
 
 
 from sqlalchemy.orm import Session
@@ -193,4 +193,58 @@ class UserService:
                 return db_user
             except:
                 logging.error("user.services.update_user(): User update failed")
+                return None
+            
+    def add_friend(self, user_id: int, friend_id: int) -> User:
+        """
+        Add a friend to a user.
+        Args:
+            user_id (int): The ID of the user to add a friend to.
+            friend_id (int): The ID of the friend to add.
+        Returns:
+            User: The updated user object.
+        """
+        with Session(self.db_engine) as db:
+            user = db.query(User).filter(User.id == user_id).one_or_none()
+            friend = db.query(User).filter(User.id == friend_id).one_or_none()
+
+            print("user: ", user, friend)
+
+            if not user or not friend:
+                logging.error("user.services.add_friend(): User or friend not found")
+                return None
+            try:
+                user.friends.append(friend) # modify this later so that they are only friends if they accept
+                friend.friends.append(user)
+                db.commit()
+                logging.info("user.services.add_friend(): Friend added successfully")
+                db.refresh(user)
+                return user.friends
+            except Exception as e:
+                logging.error(f"user.services.add_friend(): Failed to add friend {e}")
+                return None
+    
+
+    def get_user_friends(self, user_id: int) -> List[User]:
+        """
+        Get list of friends for user id.
+        Args:
+            user_id (int): The ID of the user to get list of user friends
+        Returns:
+            List[User]: The list of users objects for a given user
+        """
+
+        with Session(self.db_engine) as db:
+            user = db.query(User).filter(User.id == user_id).one_or_none()
+
+            if not user:
+                logging.error("user.services.get_user_friends(): User or friend not found")
+                return None
+        
+            try:
+                friends = user.friends
+                logging.error("user.services.get_user_friends(): Got user friends successfully")
+                return friends
+            except:
+                logging.error("user.services.get_user_friends(): Failed to get friends")
                 return None

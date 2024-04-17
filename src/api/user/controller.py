@@ -1,3 +1,5 @@
+import stat
+from typing import List
 from fastapi import HTTPException, APIRouter, Response, status, Request
 from sqlalchemy.orm import Session
 from src.api.user.services import UserService
@@ -70,7 +72,7 @@ class UserController:
 
         # TODO: Should only be able to get user from given JWT. 
         # i.e user should only be able to read their own data from given JWT
-        @self.router.get("/{user_id}", response_model=schemas.User)
+        @self.router.get("/id/{user_id}", response_model=schemas.User)
         async def read_user_by_id(user_id: int):
             db_user = self.service.get_user(user_id)
             if db_user is None:
@@ -79,7 +81,7 @@ class UserController:
         
         # TODO: Should only be able to get user from given JWT 
         # i.e user should only be able to read their own data from given JWT
-        @self.router.get("/{phone_number}", response_model=schemas.User)
+        @self.router.get("/phone_number/{phone_number}", response_model=schemas.User)
         async def read_user_by_phone(phone_number: str):
             print(phone_number)
             db_user = self.service.get_user_by_phone_number(phone_number)
@@ -87,3 +89,18 @@ class UserController:
                 raise HTTPException(status_code=404, detail="User not found")
             return db_user
         
+        @self.router.post("/add-friend", response_model=List[schemas.User])
+        async def add_friend(friend: schemas.FriendUser, request: Request):
+            jwt_user = request.state.user
+            updated_user = self.service.add_friend(jwt_user["id"], friend.friend_id)
+            if updated_user is None:
+                raise HTTPException(status_code=400, detail="User or friend not found")
+            return updated_user
+        
+        @self.router.get("/get-friends", response_model=List[schemas.User])
+        async def get_friends(request: Request):
+            jwt_user = request.state.user
+            friend_list = self.service.get_user_friends(jwt_user["id"])
+            if friend_list is None:
+                raise HTTPException(status_code=400, detail="Unable to get user friend list")
+            return friend_list

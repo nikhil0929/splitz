@@ -69,8 +69,8 @@ class Receipt(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     receipt_name: Mapped[str] = mapped_column(String(50))
-    room_code: Mapped[str] = mapped_column(String, ForeignKey("rooms.room_code"))
-    room: Mapped["Room"] = relationship("Room", back_populates="receipts")
+    room_code: Mapped[Optional[str]] = mapped_column(String, ForeignKey("rooms.room_code"))
+    room: Mapped[Optional["Room"]] = relationship("Room", back_populates="receipts")
     owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     owner_name: Mapped[str] = mapped_column(String(50))
     merchant_name: Mapped[str] = mapped_column(String(50))
@@ -78,6 +78,7 @@ class Receipt(Base):
     tax_amount: Mapped[float] = mapped_column(Float)
     tip_amount: Mapped[float] = mapped_column(Float)
     date: Mapped[str] = mapped_column(String(50))
+    temporary_users: Mapped[List[str]] = mapped_column(String(50))
 
     
     # Establish a one-to-many relationship with Item

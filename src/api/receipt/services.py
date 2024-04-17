@@ -1,3 +1,4 @@
+from db.models import room
 from . import schemas
 from db.models.receipt import Receipt, Item, UserReceiptAssociation
 from db.models.room import Room
@@ -62,16 +63,26 @@ class Receipt(Base):
         return f"Receipt(id={self.id!r}, name={self.receipt_name!r}, room_id={self.room_id!r} )"
         
     '''
-    def create_receipt(self, room_code: str, receipt_name: str, receipt_dict: dict) -> Receipt:
+    def create_receipt(self, receipt_name: str, receipt_dict: dict, room_code: str = None, owner_id: int = None, user_list: list = []) -> Receipt:
         with Session(self.db_engine) as session:
             try:
                 # Get room
-                stmt = select(Room).where(Room.room_code == room_code)
-                room = session.scalars(stmt).first()
+                if room_code:
+                    stmt = select(Room).where(Room.room_code == room_code)
+                    room = session.scalars(stmt).first()
 
-                # Get user to assign as receipt owner
-                stmt = select(User).where(User.id == room.room_owner_id)
-                user = session.scalars(stmt).first()
+                    # Get user to assign as receipt owner
+                    stmt = select(User).where(User.id == room.room_owner_id)
+                    user = session.scalars(stmt).first()
+
+                elif owner_id:
+                    user = session.query(
+                        User
+                    ).filter(
+                        User.id == owner_id
+                    ).one_or_none()
+
+                
 
                 # Create items for receipt
                 print("Receipt: ", receipt_dict)
@@ -90,10 +101,14 @@ class Receipt(Base):
                                       tip_amount=receipt_dict["tip_amount"],
                                       tax_amount=receipt_dict["tax_amount"], 
                                       date=receipt_dict["date"], 
-                                      items=items_list)
-                # Add the receipt to the room's receipts list (back-populates)
-                room.receipts.append(new_receipt)
-                session.add(room)
+                                      items=items_list,
+                                      temporary_users=user_list)
+                
+                if room:
+                    # Add the receipt to the room's receipts list (back-populates)
+                    room.receipts.append(new_receipt)
+                    # session.add(room)
+                    
                 session.add(new_receipt)
                 session.commit()  # Commit the session to save both the new receipt and the updated room
                 session.refresh(new_receipt)  # Refresh the object after committing
@@ -260,13 +275,17 @@ class Receipt(Base):
     ## to return to the client. USE Boto3 package for S3 file handling
     # 
     # For right now, implement dummy function in AWS Lambda that returns random JSON data. 
-    def add_receipt_to_s3_room(self, room_code: str, file_content: bytes, img_filename: str) -> bool:
+    def add_receipt_to_s3(self, file_content: bytes, img_filename: str, room_code: str = None, user_id: int = None) -> bool:
         # Initialize the S3 client
         s3 = boto3.client('s3', aws_access_key_id=self.s3_access_key, aws_secret_access_key=self.s3_secret_key)
 
         # Define the bucket name and the file name (you can customize this)
         bucket_name = self.bucket_name
-        file_name = f"{room_code}/{img_filename}"  # This will save the image in a folder named after the room_code
+        if room_code:
+            file_name = f"{room_code}/{img_filename}"  # This will save the image in a folder named after the room_code
+        if user_id:
+            file_name = f"user_{user_id}/{img_filename}"  # This will save the image in a folder named after the user_{id}
+        
 
         try:
             # Upload the file to S3
@@ -275,18 +294,18 @@ class Receipt(Base):
             # Here, you can trigger the AWS Lambda function if need be
             # For now, as you mentioned, we'll assume the Lambda function is triggered automatically upon file upload
 
-            logging.info(f"room.services.add_receipt_to_s3_room(): Receipt uploaded to {room_code} folder in S3")
+            logging.info(f"room.services.add_receipt_to_s3(): Receipt uploaded to {room_code if room_code else user_id} folder in S3")
             return True
 
         except NoCredentialsError:
-            logging.error("room.services.add_receipt_to_s3_room(): Missing AWS credentials")
+            logging.error("room.services.add_receipt_to_s3(): Missing AWS credentials")
             return False
         except Exception as e:
-            logging.error(f"room.services.add_receipt_to_s3_room(): An error occurred: {e}")
+            logging.error(f"room.services.add_receipt_to_s3(): An error occurred: {e}")
             return False
-        
+    
 
-    def download_receipts_from_s3_room(self, room_code: str) -> List[Tuple[str, BytesIO]]:
+    def download_receipts_from_s3(self, room_code: str = None, user_id: int = None) -> List[Tuple[str, BytesIO]]:
         """
         Download all receipt images from the specified room_code folder in the S3 bucket.
         :param room_code: The code of the room.
@@ -297,11 +316,14 @@ class Receipt(Base):
 
         try:
             # List objects in the specified folder
-            response = s3.list_objects_v2(Bucket=self.bucket_name, Prefix=f"{room_code}/")
+            if room_code:
+                response = s3.list_objects_v2(Bucket=self.bucket_name, Prefix=f"{room_code}/")
+            elif user_id:
+                response = s3.list_objects_v2(Bucket=self.bucket_name, Prefix=f"user_{user_id}/")
 
             # Check if the response contains 'Contents' key
             if 'Contents' not in response:
-                logging.warning(f"room.services.download_receipts_from_s3_room(): No receipts found for room {room_code}")
+                logging.warning(f"room.services.download_receipts_from_s3(): No receipts found for {f'room {room_code}' if room_code else f'user_{user_id}'}")
                 return []
 
             file_contents = []
@@ -311,11 +333,11 @@ class Receipt(Base):
                 s3.download_fileobj(self.bucket_name, content['Key'], file_obj)
                 file_contents.append((file_name, file_obj))
 
-            logging.info(f"room.services.download_receipts_from_s3_room(): Downloaded {len(file_contents)} receipts for room {room_code}")
+            logging.info(f"room.services.download_receipts_from_s3(): Downloaded {len(file_contents)} receipts for room {f'room {room_code}' if room_code else f'user_{user_id}'}")
             return file_contents
 
         except Exception as e:
-            logging.error(f"room.services.download_receipts_from_s3_room(): An error occurred: {e}")
+            logging.error(f"room.services.download_receipts_from_s3(): An error occurred: {e}")
             return []
 
     def add_items_to_receipt(self, items: List[schemas.ItemBase], receipt_id: int) -> schemas.Item:
@@ -385,7 +407,7 @@ class Receipt(Base):
                 logging.error(e)
                 return False
             
-    def parse_receipt(self, room_code: str, file_content: bytes) -> dict:
+    def parse_receipt(self, file_content: bytes) -> dict:
 
         parsed_receipt = self.receipt_parser.parse_receipt(file_content)
 

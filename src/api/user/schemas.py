@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 from typing import Optional
 
+from db.base_model import Base
+
 
 
 
@@ -37,12 +39,14 @@ class User(UserBase):
         from_attributes = True
 
 class MiniUser(BaseModel):
-    id: int
+    id: Optional[int] = None
     name: str
 
     class Config:
         from_attributes = True
 
+class FriendUser(BaseModel):
+    friend_id: int
 
 class Token(BaseModel):
     access_token: str
