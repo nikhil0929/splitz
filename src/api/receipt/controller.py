@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse, Response
 from src.api.receipt.services import ReceiptService
 
 from . import schemas
-from typing import List
+from typing import List, Optional
 import logging
 
 class ReceiptController:
@@ -98,20 +98,25 @@ class ReceiptController:
                 raise HTTPException(status_code=500, detail="Error renaming receipt")
             return did_rename
         
-        @self.router.post("/{room_code}/upload-receipt")
-        def upload_receipt_to_room(room_code: str, receipt_img: UploadFile = File(...)):
+        @self.router.post("/upload-receipt")
+        def upload_receipt_to_room(request: Request, room_code: Optional[str] = None, receipt_img: UploadFile = File(...), users: List[schemas.MiniUser] = []):
+            usr = request.state.user
             file_content = receipt_img.file.read()
-            success = self.service.add_receipt_to_s3_room(room_code, file_content, receipt_img.filename)
+            if room_code or usr["id"]:
+                success = self.service.add_receipt_to_s3(room_code=room_code, user_id=usr["id"], file_content=file_content, img_filename=receipt_img.filename)
+            else:
+                raise HTTPException(status_code=400, detail="invalid room code or user_id")
+
             if success:
-                receipt_dict = self.service.parse_receipt(room_code, file_content)
-                new_rct = self.service.create_receipt(room_code, receipt_dict["merchant_name"], receipt_dict)
+                receipt_dict = self.service.parse_receipt(file_content)
+                new_rct = self.service.create_receipt(room_code=room_code, receipt_name=receipt_dict["merchant_name"], receipt_dict=receipt_dict, owner_id=usr["id"], user_list = users)
                 return new_rct
             else:
                 raise HTTPException(status_code=500, detail="Failed to upload receipt")
 
         @self.router.get("/{room_code}/download-receipts", response_model=List[str])
         def download_receipts_from_room(room_code: str):
-            file_contents = self.service.download_receipts_from_s3_room(room_code)
+            file_contents = self.service.download_receipts_from_s3(room_code)
             
             if not file_contents:
                 raise HTTPException(status_code=404, detail="No receipts found for the room")

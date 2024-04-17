@@ -65,7 +65,6 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 "body": str(error)
                 })
     
-        
         request.state.user = token_payload["usr"]
         my_res = await call_next(request)
         return my_res

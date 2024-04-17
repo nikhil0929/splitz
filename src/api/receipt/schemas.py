@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, List
+from typing import Dict, Optional, Tuple, List
 from pydantic import BaseModel
 from src.api.user import MiniUser
 
@@ -38,7 +38,7 @@ class ReceiptCreate(BaseModel):
 
 class ReceiptNoItems(ReceiptBase):
     id: int
-    room_code: str
+    room_code: Optional[str]
     owner_id: int
 
 class Receipt(ReceiptNoItems):
