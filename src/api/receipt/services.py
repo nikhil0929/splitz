@@ -75,7 +75,7 @@ class Receipt(Base):
                     stmt = select(User).where(User.id == room.room_owner_id)
                     user = session.scalars(stmt).first()
 
-                elif owner_id:
+                else:
                     user = session.query(
                         User
                     ).filter(
@@ -92,8 +92,9 @@ class Receipt(Base):
                     items_list.append(item)
 
                 # Create a new receipt
+                print('user list', user_list)
                 new_receipt = Receipt(receipt_name=receipt_name, 
-                                      room_code=room_code, 
+                                      room_code=room_code,
                                       owner_id=user.id, 
                                       owner_name=user.name, 
                                       merchant_name=receipt_dict["merchant_name"], 
@@ -104,7 +105,7 @@ class Receipt(Base):
                                       items=items_list,
                                       temporary_users=user_list)
                 
-                if room:
+                if room_code:
                     # Add the receipt to the room's receipts list (back-populates)
                     room.receipts.append(new_receipt)
                     # session.add(room)

@@ -46,6 +46,12 @@ class Receipt(ReceiptNoItems):
 
     class Config:
         from_attributes = True
+        
+class TempUsers(BaseModel):
+    users: List[MiniUser]
+
+    class Config:
+        from_attributes = True
 
 class ReceiptUpload(BaseModel):
     room_code: str

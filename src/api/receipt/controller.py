@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, Request, HTTPException, status, UploadFile, File, Depends, Body
+from fastapi import APIRouter, Form, Request, HTTPException, status, UploadFile, File, Depends, Body
 from fastapi.responses import StreamingResponse, Response
 
 from src.api.receipt.services import ReceiptService
@@ -99,8 +99,9 @@ class ReceiptController:
             return did_rename
         
         @self.router.post("/upload-receipt")
-        def upload_receipt_to_room(request: Request, room_code: Optional[str] = None, receipt_img: UploadFile = File(...), users: List[schemas.MiniUser] = []):
+        def upload_receipt_to_room(request: Request, room_code: Optional[str] = Form(None), receipt_img: UploadFile = File(...), users: Optional[schemas.TempUsers] = Form(None)):
             usr = request.state.user
+            
             file_content = receipt_img.file.read()
             if room_code or usr["id"]:
                 success = self.service.add_receipt_to_s3(room_code=room_code, user_id=usr["id"], file_content=file_content, img_filename=receipt_img.filename)
@@ -109,7 +110,7 @@ class ReceiptController:
 
             if success:
                 receipt_dict = self.service.parse_receipt(file_content)
-                new_rct = self.service.create_receipt(room_code=room_code, receipt_name=receipt_dict["merchant_name"], receipt_dict=receipt_dict, owner_id=usr["id"], user_list = users)
+                new_rct = self.service.create_receipt(room_code=room_code, receipt_name=receipt_dict["merchant_name"], receipt_dict=receipt_dict, owner_id=usr["id"], user_list=users.users if users else None)
                 return new_rct
             else:
                 raise HTTPException(status_code=500, detail="Failed to upload receipt")

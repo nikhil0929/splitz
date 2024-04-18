@@ -1,6 +1,6 @@
 from typing import List, TYPE_CHECKING, Optional
 # from sqlalchemy import ForeignKey
-from sqlalchemy import String, Integer, Table, ForeignKey, UUID, Column, Float
+from sqlalchemy import ARRAY, String, Integer, Table, ForeignKey, UUID, Column, Float
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from ..base_model import Base
 
@@ -69,7 +69,7 @@ class Receipt(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     receipt_name: Mapped[str] = mapped_column(String(50))
-    room_code: Mapped[Optional[str]] = mapped_column(String, ForeignKey("rooms.room_code"))
+    room_code: Mapped[Optional[str]] = mapped_column(String, ForeignKey("rooms.room_code"), nullable=True)
     room: Mapped[Optional["Room"]] = relationship("Room", back_populates="receipts")
     owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     owner_name: Mapped[str] = mapped_column(String(50))
@@ -78,7 +78,7 @@ class Receipt(Base):
     tax_amount: Mapped[float] = mapped_column(Float)
     tip_amount: Mapped[float] = mapped_column(Float)
     date: Mapped[str] = mapped_column(String(50))
-    temporary_users: Mapped[List[str]] = mapped_column(String(50))
+    temporary_users: Mapped[List[str]] = mapped_column(ARRAY(String(50)))
 
     
     # Establish a one-to-many relationship with Item
