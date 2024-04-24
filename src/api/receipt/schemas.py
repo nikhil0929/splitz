@@ -1,5 +1,8 @@
+import json
 from typing import Dict, Optional, Tuple, List
-from pydantic import BaseModel
+from fastapi import Form, HTTPException, status
+from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel, ValidationError, model_validator
 from src.api.user import MiniUser
 
 class ItemBase(BaseModel):
@@ -46,13 +49,18 @@ class Receipt(ReceiptNoItems):
 
     class Config:
         from_attributes = True
-        
-class TempUsers(BaseModel):
-    users: List[MiniUser]
 
-    class Config:
-        from_attributes = True
+class UploadReceiptData(BaseModel):
+    room_code: Optional[str] | None
+    user_list: Optional[List[MiniUser]]
+    receipt_name: Optional[str] | None
 
-class ReceiptUpload(BaseModel):
-    room_code: str
-    receipt_img_url: str
+def checker(data: str = Form(...)):
+    try:
+        return UploadReceiptData.model_validate_json(data)
+    except ValidationError as e:
+        raise HTTPException(
+            detail=jsonable_encoder(e.errors()),
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    

@@ -1,7 +1,9 @@
 from . import schemas
 from db.models.user import User
 from typing import List, Tuple
-
+import boto3
+from botocore.exceptions import NoCredentialsError
+from io import BytesIO
 
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -12,7 +14,10 @@ class UserService:
     """
     Initialize UserService with db_engine, twilio_authenticator, and jwt_authenticator.
     """
-    def __init__(self, db_engine, twilio_authenticator, jwt_authenticator):
+    def __init__(self, db_engine, twilio_authenticator, jwt_authenticator, bucket_name: str, s3_access_key: str, s3_secret_key: str):
+        self.bucket_name = bucket_name
+        self.s3_access_key = s3_access_key
+        self.s3_secret_key = s3_secret_key
         self.db_engine = db_engine.get_engine()
         self.twilio_authenticator = twilio_authenticator
         self.jwt_authenticator = jwt_authenticator
@@ -248,3 +253,37 @@ class UserService:
             except:
                 logging.error("user.services.get_user_friends(): Failed to get friends")
                 return None
+            
+    
+    def upload_profile_picture(self, user_id: int, file_content: bytes) -> bool:
+        """
+        Upload a user's profile picture to an AWS S3 bucket.
+        Args:
+            user_id (int): The ID of the user.
+            file_content (bytes): The binary content of the image file.
+        Returns:
+            bool: True if the upload is successful, False otherwise.
+        """
+        # Initialize the S3 client
+        s3 = boto3.client('s3', aws_access_key_id=self.s3_access_key, aws_secret_access_key=self.s3_secret_key)
+        object_key = f"user_{user_id}.jpg"
+        with Session(self.db_engine) as db:
+            user = db.query(User).filter(User.id == user_id).one_or_none()
+            try:
+                # Upload the file to S3
+                s3.upload_fileobj(BytesIO(file_content), self.bucket_name, object_key, ExtraArgs={'ACL': 'public-read'})
+
+                # add s3 url to user 'profile_picture_url' field
+                s3_url = f"https://{self.bucket_name}.s3.amazonaws.com/{object_key}"
+                user.profile_picture_url = s3_url
+                db.add(user)
+                db.commit()
+
+                logging.info("user.services.upload_profile_picture(): Successfully uploaded image")
+                return True
+            except NoCredentialsError:
+                logging.error("user.services.upload_profile_picture(): No AWS credentials found")
+                return False
+            except Exception as e:
+                logging.error(f"user.services.upload_profile_picture(): An error occurred: {e}")
+                return False

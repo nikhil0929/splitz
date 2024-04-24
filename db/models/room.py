@@ -1,6 +1,6 @@
 from typing import List, TYPE_CHECKING, Optional
 # from sqlalchemy import ForeignKey
-from sqlalchemy import String, Integer, Table, ForeignKey, UUID, Column, Float
+from sqlalchemy import String, Integer, Table, ForeignKey, UUID, Column, Float, null
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from ..base_model import Base
 
@@ -26,6 +26,7 @@ class Room(Base):
     room_password: Mapped[str] = mapped_column(String(100))
     room_owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     num_members: Mapped[int] = mapped_column(Integer, default=1)
+    room_picture_url: Mapped[str] = mapped_column(String, nullable=True)
 
     # Establish a one to many relationship with receipts. This room can have many receipts
     receipts: Mapped[List["Receipt"]] = relationship("Receipt", back_populates="room")

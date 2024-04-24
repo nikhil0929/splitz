@@ -99,24 +99,26 @@ class ReceiptController:
             return did_rename
         
         @self.router.post("/upload-receipt")
-        def upload_receipt_to_room(request: Request, room_code: Optional[str] = Form(None), receipt_img: UploadFile = File(...), users: Optional[schemas.TempUsers] = Form(None)):
+        async def upload_receipt_to_room(request: Request, receipt_img: UploadFile = File(...), data: schemas.UploadReceiptData = Depends(schemas.checker)):
             usr = request.state.user
-            
+            data = schemas.UploadReceiptData(**data.dict())
+            # print(data.user_list)
             file_content = receipt_img.file.read()
-            if room_code or usr["id"]:
-                success = self.service.add_receipt_to_s3(room_code=room_code, user_id=usr["id"], file_content=file_content, img_filename=receipt_img.filename)
+            if data.room_code or usr["id"]:
+                success = self.service.add_receipt_to_s3(room_code=data.room_code, user_id=usr["id"], file_content=file_content, img_filename=receipt_img.filename)
             else:
                 raise HTTPException(status_code=400, detail="invalid room code or user_id")
 
             if success:
                 receipt_dict = self.service.parse_receipt(file_content)
-                new_rct = self.service.create_receipt(room_code=room_code, receipt_name=receipt_dict["merchant_name"], receipt_dict=receipt_dict, owner_id=usr["id"], user_list=users.users if users else None)
+                rct_name = data.receipt_name if data.receipt_name else receipt_dict["merchant_name"],
+                new_rct = self.service.create_receipt(room_code=data.room_code, receipt_name=rct_name, receipt_dict=receipt_dict, owner_id=usr["id"], user_list=data.user_list)
                 return new_rct
             else:
                 raise HTTPException(status_code=500, detail="Failed to upload receipt")
 
         @self.router.get("/{room_code}/download-receipts", response_model=List[str])
-        def download_receipts_from_room(room_code: str):
+        async def download_receipts_from_room(room_code: str):
             file_contents = self.service.download_receipts_from_s3(room_code)
             
             if not file_contents:

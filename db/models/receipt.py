@@ -78,7 +78,7 @@ class Receipt(Base):
     tax_amount: Mapped[float] = mapped_column(Float)
     tip_amount: Mapped[float] = mapped_column(Float)
     date: Mapped[str] = mapped_column(String(50))
-    temporary_users: Mapped[List[str]] = mapped_column(ARRAY(String(50)))
+    # temporary_users: Mapped[List[str]] = mapped_column(ARRAY(String(50)))
 
     
     # Establish a one-to-many relationship with Item

@@ -18,6 +18,7 @@ class Room(RoomBase):
     room_code: str
     room_owner_id: int
     num_members: int
+    room_picture_url: Optional[str]
 
     class Config:
         from_attributes = True
@@ -27,6 +28,7 @@ class RoomUser(BaseModel):
     phone_number: str
     name: str
     username: str
+    profile_picture_url: Optional[str]
 
     class Config:
         from_attributes = True

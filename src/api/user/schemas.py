@@ -34,6 +34,7 @@ class User(UserBase):
     name: Optional[str] = None
     email: Optional[str] = None
     username: Optional[str] = None
+    profile_picture_url: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -51,3 +52,7 @@ class FriendUser(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class UserUploadProfilePicture(BaseModel):
+    user_id: int
+    profile_picture: str

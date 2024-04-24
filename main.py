@@ -43,7 +43,8 @@ jwt_algorithm = "HS256"
 
 s3_access_key = os.getenv("S3_ACCESS_KEY")
 s3_secret_key = os.getenv("S3_SECRET_KEY")
-bucket_name = os.getenv("BUCKET_NAME")
+s3_receipts_bucket_name = os.getenv("S3_RECEIPTS_BUCKET_NAME")
+s3_profile_pictures_bucket_name = os.getenv("S3_PROFILE_PICTURES_BUCKET_NAME")
 
 nanonets_url = os.getenv("NANONETS_URL")
 nanonets_api_key = os.getenv("NANONETS_API_KEY")
@@ -65,9 +66,9 @@ def main():
     # print("DB URL: ", splitz_db.database_url)
     splitz_db.run_migrations()
 
-    user_service = UserService(splitz_db, twilio_auth, jwt_auth)
-    room_service = RoomService(splitz_db)
-    receipt_service = ReceiptService(splitz_db, s3_access_key, s3_secret_key, bucket_name, receipt_parser)
+    user_service = UserService(splitz_db, twilio_auth, jwt_auth, bucket_name=s3_profile_pictures_bucket_name, s3_access_key=s3_access_key, s3_secret_key=s3_secret_key)
+    room_service = RoomService(splitz_db, bucket_name=s3_profile_pictures_bucket_name, s3_access_key=s3_access_key, s3_secret_key=s3_secret_key)
+    receipt_service = ReceiptService(splitz_db, s3_access_key, s3_secret_key, s3_receipts_bucket_name, receipt_parser)
 
 
     user_controller = UserController(user_service)

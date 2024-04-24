@@ -1,5 +1,6 @@
 from typing import Optional, List, TYPE_CHECKING
 # from sqlalchemy import ForeignKey
+from click import Option
 from sqlalchemy import Column, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -24,9 +25,10 @@ class User(Base):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[Optional[str]] = mapped_column(String(50))
-    phone_number: Mapped[str] = mapped_column(String(30), unique=True)
+    phone_number: Mapped[Optional[str]] = mapped_column(String(30), unique=True, nullable=True)
     email: Mapped[Optional[str]]
     username: Mapped[Optional[str]] = mapped_column(String(50), unique=True)
+    profile_picture_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     # addresses: Mapped[List["Address"]] = relationship(
     #     back_populates="users", cascade="all, delete-orphan"
     # )

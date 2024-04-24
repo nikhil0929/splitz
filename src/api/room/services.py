@@ -8,15 +8,20 @@ from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from psycopg2.errors import UniqueViolation
+from botocore.exceptions import NoCredentialsError
 import logging, random, string
 import os
 from io import BytesIO
+import boto3
 
 class RoomService:
     """
     Initialize RoomService with db_engine.
     """
-    def __init__(self, db_engine):
+    def __init__(self, db_engine, bucket_name: str, s3_access_key: str, s3_secret_key: str):
+        self.bucket_name = bucket_name
+        self.s3_access_key = s3_access_key
+        self.s3_secret_key = s3_secret_key
         self.db_engine = db_engine.get_engine()
         self.ph = PasswordHasher()
 
@@ -203,6 +208,38 @@ class RoomService:
 
             return user_costs
 
+    def upload_room_picture(self, room_code: str, file_content: bytes) -> bool:
+        """
+        Upload a room's room picture to an AWS S3 bucket.
+        Args:
+            room_code (int): The code of the room.
+            file_content (bytes): The binary content of the image file.
+        Returns:
+            bool: True if the upload is successful, False otherwise.
+        """
+        # Initialize the S3 client
+        s3 = boto3.client('s3', aws_access_key_id=self.s3_access_key, aws_secret_access_key=self.s3_secret_key)
+        object_key = f"room_{room_code}.jpg"
+        with Session(self.db_engine) as db:
+            room = db.query(Room).filter(Room.room_code == room_code).one_or_none()
+            try:
+                # Upload the file to S3
+                s3.upload_fileobj(BytesIO(file_content), self.bucket_name, object_key, ExtraArgs={'ACL': 'public-read'})
+
+                # add s3 url to room 'room_picture_url' field
+                s3_url = f"https://{self.bucket_name}.s3.amazonaws.com/{object_key}"
+                room.room_picture_url = s3_url
+                db.add(room)
+                db.commit()
+
+                logging.info("room.services.upload_room_picture(): Successfully uploaded image")
+                return True
+            except NoCredentialsError:
+                logging.error("room.services.upload_room_picture(): No AWS credentials found")
+                return False
+            except Exception as e:
+                logging.error(f"room.services.upload_room_picture(): An error occurred: {e}")
+                return False
 
 
     #### HELPER FUNCTIONS ####

@@ -63,7 +63,7 @@ class Receipt(Base):
         return f"Receipt(id={self.id!r}, name={self.receipt_name!r}, room_id={self.room_id!r} )"
         
     '''
-    def create_receipt(self, receipt_name: str, receipt_dict: dict, room_code: str = None, owner_id: int = None, user_list: list = []) -> Receipt:
+    def create_receipt(self, receipt_name: str, receipt_dict: dict, room_code: str = None, owner_id: int = None, user_list: List[schemas.MiniUser] = []) -> Receipt:
         with Session(self.db_engine) as session:
             try:
                 # Get room
@@ -92,9 +92,8 @@ class Receipt(Base):
                     items_list.append(item)
 
                 # Create a new receipt
-                print('user list', user_list)
                 new_receipt = Receipt(receipt_name=receipt_name, 
-                                      room_code=room_code,
+                                      room_code=room_code if room_code else None,
                                       owner_id=user.id, 
                                       owner_name=user.name, 
                                       merchant_name=receipt_dict["merchant_name"], 
@@ -102,9 +101,18 @@ class Receipt(Base):
                                       tip_amount=receipt_dict["tip_amount"],
                                       tax_amount=receipt_dict["tax_amount"], 
                                       date=receipt_dict["date"], 
-                                      items=items_list,
-                                      temporary_users=user_list)
+                                      items=items_list)
                 
+                for user in user_list:
+                    if user.id:
+                        splitz_user = session.query(User).filter(User.id == user.id).one_or_none()
+                    elif not user.id and user.name:
+                        splitz_user = User(name=user.name)
+                        session.add(splitz_user)
+                        session.flush()
+                    
+                    new_receipt.users.append(splitz_user)
+
                 if room_code:
                     # Add the receipt to the room's receipts list (back-populates)
                     room.receipts.append(new_receipt)
@@ -115,9 +123,8 @@ class Receipt(Base):
                 session.refresh(new_receipt)  # Refresh the object after committing
 
                 logging.info("receipt.services.create_receipt(): Receipt created sucessfully")
-                stmt = select(Receipt).options(joinedload(Receipt.items)).where(Receipt.id == new_receipt.id)
-                rct = session.scalars(stmt).first()
-                return rct
+                loaded_receipt = session.query(Receipt).options(joinedload(Receipt.users), joinedload(Receipt.items)).filter_by(id=new_receipt.id).first()
+                return loaded_receipt
             except Exception as e:
                 ## logging.error("room.services.join_room(): User is already part of the room")
                 logging.error(f"receipt.services.create_receipt(): Error creating receipt - {e}")
@@ -144,7 +151,8 @@ class Receipt(Base):
                 select(Receipt)
                 .options(
                     joinedload(Receipt.items)  # Load items
-                    .joinedload(Item.users)  # Load users for each item
+                    .joinedload(Item.users),  # Load users for each item
+                    joinedload(Receipt.users)
                 )
                 .where(Receipt.id == receipt_id)
             )
