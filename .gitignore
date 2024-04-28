@@ -21,3 +21,7 @@ __pycache__/
 *.*.py[cod]
 *.cpython-311.pyc
 PERSONAL_README.md
+
+alembic/
+alembic.ini
+migrations/
