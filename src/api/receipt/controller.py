@@ -25,6 +25,19 @@ class ReceiptController:
         def get_all_receipts(request: Request):
             usr = request.state.user
             return self.service.get_user_receipts(usr["id"])
+        
+        @self.router.get("/one-off_receipt_list", response_model=List[schemas.ReceiptNoItems])
+        def get_user_quick_split_receipts(request: Request):
+            # Get all receipts from room
+            # make sure user is part of this room
+            usr = request.state.user
+            # if not self.service.is_user_on_receipt(usr["id"], room_code):
+            #     raise HTTPException(status_code=404, detail="User is not in room")
+            rcts = self.service.get_one_off_receipts(usr["id"])
+            if rcts is None:
+                raise HTTPException(status_code=404, detail="Unable to get users for receipt. ")
+            # print(rct)
+            return rcts
 
         # this is for the AWS lambda function to use
         @self.router.post("/{room_code}/send-receipt")
@@ -49,6 +62,16 @@ class ReceiptController:
             # print(rct)
             return rcts
         
+
+        @self.router.get("/receipt/{receipt_id}")
+        def get_one_off_receipt(receipt_id: int, request: Request):
+            # Get all items from receipt
+            # make sure user is part of this room
+            usr = request.state.user
+            if not self.service.is_user_on_receipt(usr["id"], receipt_id=receipt_id):
+                raise HTTPException(status_code=404, detail="User is not on receipt")
+            return self.service.get_receipt(receipt_id)
+        
         @self.router.get("/{room_code}/receipt/{receipt_id}")
         def get_receipt(receipt_id: int, room_code: str, request: Request):
             # Get all items from receipt
@@ -57,8 +80,8 @@ class ReceiptController:
             if not self.service.is_user_in_room(usr["id"], room_code):
                 raise HTTPException(status_code=404, detail="User is not in room")
             return self.service.get_receipt(receipt_id)
-
         
+
         @self.router.post("/{room_code}/select-items/{receipt_id}", response_model=bool)
         def user_select_items(items_data: schemas.GetItems, room_code: str, receipt_id: int,  request: Request):
             # Take in user selected items and add to users field in Item object
@@ -70,6 +93,18 @@ class ReceiptController:
             
             if not did_add:
                 raise HTTPException(status_code=500, detail="Error adding user to items")
+            return did_add
+
+        
+        @self.router.post("/add-users/{receipt_id}", response_model=bool)
+        def add_users_to_receipt(users_list: List[int] ,receipt_id: int,  request: Request):
+            
+            usr = request.state.user
+            
+            did_add = self.service.receipt_add_users(receipt_id=receipt_id, users_list=users_list)
+            
+            if not did_add:
+                raise HTTPException(status_code=500, detail="Error adding users to receipt")
             return did_add
         
         # Get users items for a given receipt_id
@@ -97,6 +132,13 @@ class ReceiptController:
             if not did_rename:
                 raise HTTPException(status_code=500, detail="Error renaming receipt")
             return did_rename
+        
+        @self.router.post("/create-empty-receipt")
+        def create_empty_receipt(request: Request, data: schemas.UploadReceiptData):
+            usr = request.state.user
+
+            new_rct = self.service.create_empty_receipt(room_code=data.room_code, receipt_name=data.receipt_name, owner_id=usr["id"], user_list=data.user_list)
+            return new_rct
         
         @self.router.post("/upload-receipt")
         async def upload_receipt_to_room(request: Request, receipt_img: UploadFile = File(...), data: schemas.UploadReceiptData = Depends(schemas.checker)):

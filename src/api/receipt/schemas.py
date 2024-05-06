@@ -1,5 +1,6 @@
 import json
 from typing import Dict, Optional, Tuple, List
+from click import Option
 from fastapi import Form, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ValidationError, model_validator
@@ -9,6 +10,7 @@ class ItemBase(BaseModel):
     item_name: str
     item_quantity: int
     item_price: float
+    add_item_price_to_total: Optional[bool]
 
 class GetItems(BaseModel):
     item_id_list: List[int]
