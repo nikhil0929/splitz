@@ -94,6 +94,20 @@ class ReceiptController:
             if not did_add:
                 raise HTTPException(status_code=500, detail="Error adding user to items")
             return did_add
+        
+        @self.router.post("/assign-items/{receipt_id}", response_model=bool)
+        def user_select_items(items_data: schemas.AssignItems, receipt_id: int,  request: Request):
+            # Take in user selected items and add to users field in Item object
+            # make sure user is part of this receipt
+            usr = request.state.user
+            if not self.service.is_user_on_receipt(usr["id"], receipt_id=receipt_id):
+                raise HTTPException(status_code=404, detail="User is not on receipt")
+            did_add = self.service.user_select_items(items_data.item_id_list, items_data.user_id, receipt_id, items_data.user_total_cost, room_code=None)
+            
+            if not did_add:
+                raise HTTPException(status_code=500, detail="Error adding user to items")
+            return did_add
+
 
         
         @self.router.post("/add-users/{receipt_id}", response_model=bool)

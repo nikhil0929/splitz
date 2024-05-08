@@ -264,11 +264,12 @@ class Receipt(Base):
                 receipt_stmt = select(Receipt).where(Receipt.id == receipt_id)
                 receipt = session.execute(receipt_stmt).scalars().first()
 
-                if receipt.room_code != room_code:
-                    return False
+                if room_code is not None:
+                    if receipt.room_code != room_code:
+                        return False
 
-                if user not in receipt.room.users:
-                    return False
+                    if user not in receipt.room.users:
+                        return False
 
                 # Check if the UserReceiptAssociation already exists
                 assoc_stmt = select(UserReceiptAssociation).where(UserReceiptAssociation.user_id == user_id, UserReceiptAssociation.receipt_id == receipt_id)
@@ -469,7 +470,7 @@ class Receipt(Base):
     def get_one_off_receipts(self, user_id: int) ->  List[Receipt]:
         with Session(self.db_engine) as session:
             try:
-                receipts = session.query(Receipt).filter(Receipt.users.any(id=user_id)).all()
+                receipts = session.query(Receipt).filter(Receipt.users.any(id=user_id), Receipt.room_code == None).all()
                 return receipts
             except Exception as e:
                 logging.error(e)

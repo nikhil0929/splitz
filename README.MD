@@ -3,7 +3,7 @@
 Run it locally from my `main.py` file.
 
 ```bash
-uvicorn main:app --reload
+python3 -m uvicorn main:app --reload
 ```
 
 ## Ec2 Instance:

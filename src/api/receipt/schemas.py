@@ -16,6 +16,9 @@ class GetItems(BaseModel):
     item_id_list: List[int]
     user_total_cost: float
 
+class AssignItems(GetItems):
+    user_id: int
+
 class Item(ItemBase):
     id: int
 
