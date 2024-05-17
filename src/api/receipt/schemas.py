@@ -48,6 +48,7 @@ class ReceiptNoItems(ReceiptBase):
     id: int
     room_code: Optional[str]
     owner_id: int
+    owner_name: str
 
 class Receipt(ReceiptNoItems):
     items: List[ItemWithUsers]
@@ -56,9 +57,9 @@ class Receipt(ReceiptNoItems):
         from_attributes = True
 
 class UploadReceiptData(BaseModel):
-    room_code: Optional[str] | None
+    room_code: Optional[str]
     user_list: Optional[List[MiniUser]]
-    receipt_name: Optional[str] | None
+    receipt_name: Optional[str]
 
 def checker(data: str = Form(...)):
     try:
@@ -68,4 +69,3 @@ def checker(data: str = Form(...)):
             detail=jsonable_encoder(e.errors()),
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    

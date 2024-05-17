@@ -1,6 +1,6 @@
 from db.models import room
 from . import schemas
-from db.models.receipt import Receipt, Item, UserReceiptAssociation
+from db.models.receipt import Receipt, Item, UserReceiptAssociation, user_item_association
 from db.models.room import Room
 from db.models.user import User
 from typing import Tuple
@@ -48,7 +48,7 @@ class ReceiptService:
 
     def __repr__(self) -> str:
         return f"Item(id={self.id!r}, name={self.item_name!r}, quantity={self.item_quantity!r}, cost={self.item_cost!r} )"
-    
+
 
 class Receipt(Base):
     __tablename__ = "receipts"
@@ -61,7 +61,7 @@ class Receipt(Base):
 
     def __repr__(self) -> str:
         return f"Receipt(id={self.id!r}, name={self.receipt_name!r}, room_id={self.room_id!r} )"
-        
+
     '''
     def create_receipt(self, receipt_name: str, receipt_dict: dict, room_code: str = None, owner_id: int = None, user_list: List[schemas.MiniUser] = []) -> Receipt:
         with Session(self.db_engine) as session:
@@ -82,7 +82,7 @@ class Receipt(Base):
                         User.id == owner_id
                     ).one_or_none()
 
-                
+
 
                 # Create items for receipt
                 print("Receipt: ", receipt_dict)
@@ -92,17 +92,17 @@ class Receipt(Base):
                     items_list.append(item)
 
                 # Create a new receipt
-                new_receipt = Receipt(receipt_name=receipt_name, 
+                new_receipt = Receipt(receipt_name=receipt_name,
                                       room_code=room_code if room_code else None,
-                                      owner_id=user.id, 
-                                      owner_name=user.name, 
-                                      merchant_name=receipt_dict["merchant_name"], 
-                                      total_amount=receipt_dict["total_amount"], 
+                                      owner_id=user.id,
+                                      owner_name=user.name,
+                                      merchant_name=receipt_dict["merchant_name"],
+                                      total_amount=receipt_dict["total_amount"],
                                       tip_amount=receipt_dict["tip_amount"],
-                                      tax_amount=receipt_dict["tax_amount"], 
-                                      date=receipt_dict["date"], 
+                                      tax_amount=receipt_dict["tax_amount"],
+                                      date=receipt_dict["date"],
                                       items=items_list)
-                
+
                 for user in user_list:
                     if user.id:
                         splitz_user = session.query(User).filter(User.id == user.id).one_or_none()
@@ -110,14 +110,14 @@ class Receipt(Base):
                         splitz_user = User(name=user.name)
                         session.add(splitz_user)
                         session.flush()
-                    
+
                     new_receipt.users.append(splitz_user)
 
                 if room_code:
                     # Add the receipt to the room's receipts list (back-populates)
                     room.receipts.append(new_receipt)
                     # session.add(room)
-                    
+
                 session.add(new_receipt)
                 session.commit()  # Commit the session to save both the new receipt and the updated room
                 session.refresh(new_receipt)  # Refresh the object after committing
@@ -129,7 +129,7 @@ class Receipt(Base):
                 ## logging.error("room.services.join_room(): User is already part of the room")
                 logging.error(f"receipt.services.create_receipt(): Error creating receipt - {e}")
                 return None
-    
+
     def create_empty_receipt(self, receipt_name: str, room_code: str = None, owner_id: int = None, user_list: List[schemas.MiniUser] = []) -> Receipt:
         with Session(self.db_engine) as session:
             try:
@@ -148,11 +148,11 @@ class Receipt(Base):
 
 
                 # Create a new receipt
-                new_receipt = Receipt(receipt_name=receipt_name, 
+                new_receipt = Receipt(receipt_name=receipt_name,
                                       room_code=room_code if room_code else None,
-                                      owner_id=user.id, 
+                                      owner_id=user.id,
                                       owner_name=user.name)
-                
+
                 for user in user_list:
                     if user.id:
                         splitz_user = session.query(User).filter(User.id == user.id).one_or_none()
@@ -160,14 +160,14 @@ class Receipt(Base):
                         splitz_user = User(name=user.name)
                         session.add(splitz_user)
                         session.flush()
-                    
+
                     new_receipt.users.append(splitz_user)
 
                 if room_code:
                     # Add the receipt to the room's receipts list (back-populates)
                     room.receipts.append(new_receipt)
                     # session.add(room)
-                    
+
                 session.add(new_receipt)
                 session.commit()  # Commit the session to save both the new receipt and the updated room
                 session.refresh(new_receipt)  # Refresh the object after committing
@@ -179,7 +179,17 @@ class Receipt(Base):
                 ## logging.error("room.services.join_room(): User is already part of the room")
                 logging.error(f"receipt.services.create_empty_receipt(): Error creating receipt - {e}")
                 return None
-        
+
+    def delete_receipt(self, receipt_id: int):
+        with Session(self.db_engine) as session:
+            items = session.query(Item).filter(Item.receipt_id == receipt_id).all()
+            for item in items:
+                session.query(user_item_association).filter(user_item_association.c.item_id == item.id).delete()
+                session.delete(item)
+            receipt = session.query(Receipt).filter(Receipt.id == receipt_id).first()
+            session.query(UserReceiptAssociation).filter(UserReceiptAssociation.receipt_id == receipt_id).delete()
+            session.delete(receipt)
+            session.commit()
 
     # get all receipts that are in this room_code. Only send back receipt data (NO ITEM DATA)
     def get_receipts(self, room_code: str) -> List[Receipt]:
@@ -192,7 +202,7 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(f"receipt.services.get_receipts(): Error getting receipts - {e}")
                 return []
-            
+
     # get receipt by id with all item data
     def get_receipt(self, receipt_id: int) -> Receipt:
         with Session(self.db_engine) as session:
@@ -213,13 +223,13 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(e)
                 return None
-            
+
     def get_user_receipts(self, user_id: int) -> List[Receipt]:
 
         '''
-            get list of all receipts for the current user from the UserReceiptAssociation. 
+            get list of all receipts for the current user from the UserReceiptAssociation.
 
-            We populate 'UserReceiptAssociation' in the 'user_select_items' function. So the UserReceiptAssociation 
+            We populate 'UserReceiptAssociation' in the 'user_select_items' function. So the UserReceiptAssociation
             table holds user id's and what receipt they are attatched to based on if they selected an item on a receipt
         '''
         with Session(self.db_engine) as session:
@@ -236,7 +246,7 @@ class Receipt(Base):
                 logging.error(f"receipt.services.get_user_receipts(): Error getting user receipts - {e}")
                 return []
 
-            
+
     def get_items(self, receipt_id: int) -> List[Item]:
         with Session(self.db_engine) as session:
             try:
@@ -248,7 +258,7 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(f"receipt.services.get_items(): Error getting items - {e}")
                 return []
-            
+
     ## add user to item 'users' field for each of the selected items
     ## send a list of item ids in the request body in the "item_id_list" field
     ## also populate the user_receipt "receipt_total_cost" field with the total cost of the receipt
@@ -308,11 +318,11 @@ class Receipt(Base):
         with Session(self.db_engine) as session:
             try:
                 receipt = session.get(Receipt, receipt_id)
-                
+
                 for new_id in users_list:
                     new_user_to_add = session.get(User, new_id)
                     receipt.users.append(new_user_to_add)
-                
+
                 session.commit()
                 return True
             except Exception as e:
@@ -332,7 +342,7 @@ class Receipt(Base):
                 # check if user is a part of this room
                 if user not in room.users:
                     return None
-                
+
                 # Hold a reference to the Receipt object
                 receipt_stmt = select(Receipt).where(Receipt.id == receipt_id)
                 receipt = session.execute(receipt_stmt).scalars().first()
@@ -350,14 +360,14 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(f"receipt.services.get_user_items(): Error getting items for user - {e}")
                 return None
-            
-    
+
+
     ## adds a receipt to the appropriate s3 bucket for the room with the given room code
     ## NOTE: adding an image to a bucket folder causes an lambda function event to trigger for processing
     ## the receipt. The lambda function processes the receipt and sends the JSON data back to this server to
     ## to return to the client. USE Boto3 package for S3 file handling
-    # 
-    # For right now, implement dummy function in AWS Lambda that returns random JSON data. 
+    #
+    # For right now, implement dummy function in AWS Lambda that returns random JSON data.
     def add_receipt_to_s3(self, file_content: bytes, img_filename: str, room_code: str = None, user_id: int = None) -> bool:
         # Initialize the S3 client
         s3 = boto3.client('s3', aws_access_key_id=self.s3_access_key, aws_secret_access_key=self.s3_secret_key)
@@ -368,7 +378,7 @@ class Receipt(Base):
             file_name = f"{room_code}/{img_filename}"  # This will save the image in a folder named after the room_code
         if user_id:
             file_name = f"user_{user_id}/{img_filename}"  # This will save the image in a folder named after the user_{id}
-        
+
 
         try:
             # Upload the file to S3
@@ -386,7 +396,7 @@ class Receipt(Base):
         except Exception as e:
             logging.error(f"room.services.add_receipt_to_s3(): An error occurred: {e}")
             return False
-    
+
 
     def download_receipts_from_s3(self, room_code: str = None, user_id: int = None) -> List[Tuple[str, BytesIO]]:
         """
@@ -453,7 +463,7 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(f"receipt.services.add_items_to_receipt(): Error adding items to receipt - {e}")
                 return None
-            
+
     def rename_receipt(self, receipt_id: int, receipt_name: str) -> bool:
         with Session(self.db_engine) as session:
             try:
@@ -466,7 +476,7 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(f"receipt.services.rename_receipt(): Error renaming receipt - {e}")
                 return False
-    
+
     def get_one_off_receipts(self, user_id: int) ->  List[Receipt]:
         with Session(self.db_engine) as session:
             try:
@@ -475,7 +485,7 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(e)
                 return None
-            
+
     ## HELPER FUNCTIONS ##
     def is_user_in_room(self, user_id: int, room_code: str) -> bool:
         with Session(self.db_engine) as session:
@@ -488,7 +498,7 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(e)
                 return False
-            
+
     def is_user_on_receipt(self, user_id: int, receipt_id: int) -> bool:
         with Session(self.db_engine) as session:
             try:
@@ -516,12 +526,11 @@ class Receipt(Base):
             except Exception as e:
                 logging.error(e)
                 return False
-            
+
     def parse_receipt(self, file_content: bytes) -> dict:
 
         parsed_receipt = self.receipt_parser.parse_receipt(file_content)
 
         return parsed_receipt
 
-            
-    
+
