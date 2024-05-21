@@ -120,8 +120,7 @@ eas login
 ```
 
 Credentials:
-username: nikhil0929
-password: qujsik-sopdyn-Ritke4
+expo credentials
 
 3. configure build
 
@@ -129,16 +128,14 @@ password: qujsik-sopdyn-Ritke4
 eas build:configure
 ```
 
-4. Buil for ios
+4. Build for ios
 
 ```bash
 eas build --platform ios
 ```
 
 It is going to ask you to login to apple developer account:
-
-username: splitzcompany@gmail.com
-password: Tiredofthis!2
+apple developer account login
 
 5. Wait for build to complete
 
