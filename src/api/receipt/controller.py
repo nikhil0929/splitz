@@ -154,11 +154,8 @@ class ReceiptController:
             new_rct = self.service.create_empty_receipt(room_code=data.room_code, receipt_name=data.receipt_name, owner_id=usr["id"], user_list=data.user_list)
             return new_rct
 
-        @self.router.post("/{room_code}/delete/{receipt_id}")
-        def delete_receipt(room_code: str, receipt_id: int, request: Request):
-            usr = request.state.user
-            if not self.service.is_user_in_room(usr["id"], room_code):
-                raise HTTPException(status_code=404, detail="User is not in room")
+        @self.router.post("/delete/{receipt_id}")
+        def delete_receipt(receipt_id: int):
             self.service.delete_receipt(receipt_id)
 
         @self.router.post("/upload-receipt")
