@@ -307,6 +307,11 @@ class Receipt(Base):
 
                     item.users.append(user)
 
+                # query for a users items, loop through these items, and if one does not exist in the list, remove it
+                for user_item in user.items:
+                    if user_item.id not in items_data:
+                        user.items.remove(user_item)
+
                 session.commit()
                 return True
             except Exception as e:

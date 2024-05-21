@@ -41,7 +41,7 @@ class UserService:
             except:
                 logging.error("user.services.get_user(): Unable to locate record with given parameters")
                 return None
-            
+
 
     def get_user_by_phone_number(self, phone_number: str) -> User:
         """
@@ -73,6 +73,7 @@ class UserService:
         with Session(self.db_engine) as db:
             try:
                 stmt = select(User).offset(skip).limit(limit)
+                stmt = stmt.filter(User.username != None)
                 usrs = db.scalars(stmt).all()
                 logging.info("user.services.get_users(): Sucessfully queried records")
                 return usrs
@@ -139,7 +140,7 @@ class UserService:
         else:
             logging.info("user.services.check_verification(): User OTP successful")
             return True
-        
+
 
     def create_user(self, user: schemas.UserCreate) -> User:
         """
@@ -199,7 +200,7 @@ class UserService:
             except:
                 logging.error("user.services.update_user(): User update failed")
                 return None
-            
+
     def add_friend(self, user_id: int, friend_id: int) -> User:
         """
         Add a friend to a user.
@@ -228,7 +229,7 @@ class UserService:
             except Exception as e:
                 logging.error(f"user.services.add_friend(): Failed to add friend {e}")
                 return None
-    
+
 
     def get_user_friends(self, user_id: int) -> List[User]:
         """
@@ -245,7 +246,7 @@ class UserService:
             if not user:
                 logging.error("user.services.get_user_friends(): User or friend not found")
                 return None
-        
+
             try:
                 friends = user.friends
                 logging.error("user.services.get_user_friends(): Got user friends successfully")
@@ -253,8 +254,8 @@ class UserService:
             except:
                 logging.error("user.services.get_user_friends(): Failed to get friends")
                 return None
-            
-    
+
+
     def upload_profile_picture(self, user_id: int, file_content: bytes) -> bool:
         """
         Upload a user's profile picture to an AWS S3 bucket.
