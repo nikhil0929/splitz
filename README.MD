@@ -47,6 +47,105 @@ Requires Python, ideally on Linux or else Mac.
 5.  Test the API by doing a : python test_api.py
 6.  Look in $INSTALL_DIR/logs directory to see if there are any errors
 
+# How to deploy the application end-to-end:
+
+There is no CI/CD pipeline, so for all updated code to show up in prod, a log of manual work needs to be done. Obviously, a CI/CD pipeline needs to be set up to streamline this process.
+
+## Backend:
+
+The backend is run on an AWS EC2 instance. In simple terms, you know when you run this command locally?
+
+```bash
+python3 -m uvicorn main:app --reload
+```
+
+Its the same principle except we are running it in a computer somwhere in AWS.
+
+To update the backend code in prod, do the following:
+
+1. Make sure .pem file is downloaded on your computer. This is the 'key' that will allow you ot SSH into EC2 instance. The file is:
+
+```
+splitz_ec2.pem
+```
+
+DO NOT LOSE THIS FILE. ONCE YOU LOSE IT YOU CAN NEVER CONNECT TO THIS EC2 INSTANCE EVER AGAIN
+
+2. SSH into EC2 instance:
+
+```bash
+ssh -i "splitz_ec2.pem" ubuntu@ec2-3-14-255-133.us-east-2.compute.amazonaws.com
+```
+
+3. attach to detached terminal session:
+
+```bash
+tmux attach
+```
+
+4. stop the uvicorn instance running by doing CTRL + C
+
+5. Pull the latest code from github:
+
+```bash
+git pull
+```
+
+6. start the server again:
+
+```bash
+python3 -m uvicorn main:app --reload
+```
+
+7. detach from tmux terminal session. Press CTRL + B, then D
+
+You're done!
+
+## Frontend:
+
+in order to deploy the frontend application for other people to actually use, you basically will be following the commands from this website:
+
+https://docs.expo.dev/build/setup/
+
+1. Install eas-cli
+
+```bash
+npm install -g eas-cli
+```
+
+2. login to eas
+
+```bash
+eas login
+```
+
+Credentials:
+username: nikhil0929
+password: qujsik-sopdyn-Ritke4
+
+3. configure build
+
+```bash
+eas build:configure
+```
+
+4. Buil for ios
+
+```bash
+eas build --platform ios
+```
+
+It is going to ask you to login to apple developer account:
+
+username: splitzcompany@gmail.com
+password: Tiredofthis!2
+
+5. Wait for build to complete
+
+6. Deploy the build:
+
+https://docs.expo.dev/submit/introduction
+
 # DESIGN
 
 Data is stored in Postgres and in EC2.
