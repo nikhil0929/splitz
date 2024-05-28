@@ -151,7 +151,13 @@ class Receipt(Base):
                 new_receipt = Receipt(receipt_name=receipt_name,
                                       room_code=room_code if room_code else None,
                                       owner_id=user.id,
-                                      owner_name=user.name)
+                                      owner_name=user.name,
+                                      merchant_name='',
+                                      total_amount=0,
+                                      tax_amount=0,
+                                      tip_amount=0,
+                                      date='',
+                                    )
 
                 for user in user_list:
                     if user.id:
