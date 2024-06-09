@@ -276,19 +276,20 @@ class ReceiptController:
             )
 
         # function to add an item to a receipt given a receipt id
+        @self.router.post("/add-item/{receipt_id}")
         @self.router.post("/{room_code}/add-item/{receipt_id}")
         def add_items_to_receipt(
-            room_code: str,
             receipt_id: int,
             items: List[schemas.ItemBase],
             request: Request,
+            room_code: Optional[str] = None,
         ):
             # make sure user is part of this room
             usr = request.state.user
-            if not self.service.is_user_in_room(usr["id"], room_code):
+            if room_code and not self.service.is_user_in_room(usr["id"], room_code):
                 raise HTTPException(status_code=404, detail="User is not in room")
             # check if receipt is in room
-            if not self.service.is_receipt_in_room(receipt_id, room_code):
+            if room_code and not self.service.is_receipt_in_room(receipt_id, room_code):
                 raise HTTPException(status_code=404, detail="Receipt is not in room")
             items = self.service.add_items_to_receipt(items, receipt_id)
             if items is None:
@@ -296,3 +297,20 @@ class ReceiptController:
                     status_code=500, detail="Error adding items to receipt"
                 )
             return items
+
+        @self.router.post("/delete-item/{receipt_id}/{item_id}")
+        @self.router.post("/{room_code}/delete-item/{receipt_id}/{item_id}")
+        def delete_items_from_receipt(
+            receipt_id: int,
+            item_id: int,
+            request: Request,
+            room_code: Optional[str] = None,
+        ):
+            # make sure user is part of this room
+            usr = request.state.user
+            if room_code and not self.service.is_user_in_room(usr["id"], room_code):
+                raise HTTPException(status_code=404, detail="User is not in room")
+            # check if receipt is in room
+            if room_code and not self.service.is_receipt_in_room(receipt_id, room_code):
+                raise HTTPException(status_code=404, detail="Receipt is not in room")
+            self.service.delete_item_from_receipt(receipt_id, item_id)

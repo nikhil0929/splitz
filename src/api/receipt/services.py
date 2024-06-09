@@ -475,6 +475,15 @@ class Receipt(Base):
                 logging.error(f"receipt.services.add_items_to_receipt(): Error adding items to receipt - {e}")
                 return None
 
+    def delete_item_from_receipt(self, receipt_id: int, item_id: int):
+        with Session(self.db_engine) as session:
+            item = session.query(Item).filter(Item.receipt_id == receipt_id, Item.id == item_id).first()
+
+            receipt = session.query(Receipt).filter(Receipt.id == receipt_id).first()
+            receipt.total_amount = round(receipt.total_amount - item.item_cost, 2)
+            session.delete(item)
+            session.commit()
+
     def rename_receipt(self, receipt_id: int, receipt_name: str) -> bool:
         with Session(self.db_engine) as session:
             try:
