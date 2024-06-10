@@ -314,3 +314,17 @@ class ReceiptController:
             if room_code and not self.service.is_receipt_in_room(receipt_id, room_code):
                 raise HTTPException(status_code=404, detail="Receipt is not in room")
             self.service.delete_item_from_receipt(receipt_id, item_id)
+
+        @self.router.post("/edit-tax")
+        def edit_receipt_tax(
+            receipt_id: int,
+            new_tax: float,
+        ):
+            self.service.edit_receipt_tax(receipt_id, new_tax)
+
+        @self.router.post("/edit-tip")
+        def edit_receipt_tax(
+            receipt_id: int,
+            new_tip: float,
+        ):
+            self.service.edit_receipt_tip(receipt_id, new_tip)

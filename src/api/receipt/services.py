@@ -554,3 +554,14 @@ class Receipt(Base):
         return parsed_receipt
 
 
+    def edit_receipt_tax(self, receipt_id: int, new_tax: float):
+        with Session(self.db_engine) as session:
+            receipt = session.query(Receipt).filter(Receipt.id == receipt_id).first()
+            receipt.tax_amount = new_tax
+            session.commit()
+
+    def edit_receipt_tip(self, receipt_id: int, new_tip: float):
+        with Session(self.db_engine) as session:
+            receipt = session.query(Receipt).filter(Receipt.id == receipt_id).first()
+            receipt.tip_amount = new_tip
+            session.commit()
