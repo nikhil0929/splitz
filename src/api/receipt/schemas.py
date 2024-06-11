@@ -1,5 +1,6 @@
 import json
 from typing import Dict, Optional, Tuple, List
+from click import Option
 from fastapi import Form, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ValidationError, model_validator
@@ -9,10 +10,14 @@ class ItemBase(BaseModel):
     item_name: str
     item_quantity: int
     item_price: float
+    add_item_price_to_total: Optional[bool]
 
 class GetItems(BaseModel):
     item_id_list: List[int]
     user_total_cost: float
+
+class AssignItems(GetItems):
+    user_id: int
 
 class Item(ItemBase):
     id: int
@@ -43,6 +48,7 @@ class ReceiptNoItems(ReceiptBase):
     id: int
     room_code: Optional[str]
     owner_id: int
+    owner_name: str
 
 class Receipt(ReceiptNoItems):
     items: List[ItemWithUsers]
@@ -51,9 +57,9 @@ class Receipt(ReceiptNoItems):
         from_attributes = True
 
 class UploadReceiptData(BaseModel):
-    room_code: Optional[str] | None
+    room_code: Optional[str]
     user_list: Optional[List[MiniUser]]
-    receipt_name: Optional[str] | None
+    receipt_name: Optional[str]
 
 def checker(data: str = Form(...)):
     try:
@@ -63,4 +69,3 @@ def checker(data: str = Form(...)):
             detail=jsonable_encoder(e.errors()),
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    

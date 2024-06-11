@@ -25,6 +25,10 @@ class RoomController:
             new_room = self.service.create_room(room.room_name, room.room_password, jwt_user["id"])
             return new_room
 
+        @self.router.post("/delete/{room_code}")
+        def delete_room_by_code(room_code: str):
+            self.service.delete_room(room_code)
+
         @self.router.get("/{room_code}", response_model=schemas.Room)
         def get_room_by_code(room_code: str):
             return self.service.get_room_by_code(room_code)
@@ -51,7 +55,7 @@ class RoomController:
         def get_current_active_user(request: Request):
             jwt_user = request.state.user
             return self.service.get_rooms_by_user_id(jwt_user["id"])
-        
+
         @self.router.get("/{room_code}/user-costs", response_model=dict)
         def get_user_costs(room_code: str):
             """

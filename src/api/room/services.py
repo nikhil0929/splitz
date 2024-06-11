@@ -1,5 +1,7 @@
+from db.models.receipt import Receipt
+from src.api.receipt.services import ReceiptService
 from . import schemas
-from db.models.room import Room
+from db.models.room import Room, user_room_association
 from db.models.user import User
 from typing import Tuple
 from argon2 import PasswordHasher
@@ -37,9 +39,9 @@ class RoomService:
         Returns:
             Room: The created room object.
         """
-        
+
         room_code = self.generate_room_code()
-        
+
         with Session(self.db_engine) as db:
             try:
                 # Check for uniqueness
@@ -59,7 +61,18 @@ class RoomService:
             except UniqueViolation:
                 logging.error("room.services.create_room(): Room code already exists; Cannot create room")
                 return None
-    
+
+    def delete_room(self, room_code: str):
+        with Session(self.db_engine) as session:
+            room = session.query(Room).filter(Room.room_code == room_code).first()
+            receipts = session.query(Receipt).filter(Receipt.room_code == room_code).all()
+            for receipt in receipts:
+                ReceiptService.delete_receipt(receipt.id)
+
+            session.query(user_room_association).filter(user_room_association.c.room_id == room.id).delete()
+            session.delete(room)
+            session.commit()
+
     def get_room_by_id(self, room_id: int) -> Room:
         """
         Fetch a single room by its ID in the database.
@@ -89,7 +102,7 @@ class RoomService:
             stmt = select(Room).where(Room.room_code == room_code)
             room = db.scalars(stmt).first()
             return room
-            
+
     def get_rooms_by_user_id(self, user_id: int) -> List[Room]:
         """
         Fetch all rooms associated with a given user ID.
@@ -106,7 +119,7 @@ class RoomService:
             if user:
                 return user.rooms
             return []
-        
+
     def get_users_by_room_id(self, room_id: int) -> List[User]:
         """
         Fetch all users associated with a given room ID.
@@ -123,7 +136,7 @@ class RoomService:
             if room:
                 return room.users
             return []
-        
+
     def join_room(self, room_code: str, room_password: str, user_id: int) -> bool:
         """
         Join a room with the given room_code, room_password, and user_id.
@@ -165,7 +178,7 @@ class RoomService:
             except:
                 logging.error("room.services.join_room(): Unknown error")
                 return False
-        
+
     # Inside the RoomService class
 
     def get_user_costs_by_room_code(self, room_code: str) -> dict:
