@@ -12,7 +12,6 @@ import logging
 class VenmoController:
 
     def __init__(self, windows_venmo_url, ios_venmo_url):
-        self.service = service
         self.windows_venmo_url = windows_venmo_url
         self.ios_venmo_url = ios_venmo_url
         self.router = APIRouter(
@@ -26,6 +25,7 @@ class VenmoController:
         @self.router.post("/create_window_payment", response_model=schemas.VenmoLink)
         async def generate_charge_for_windows(request: Request, venmo_args: schemas.VenmoBase):
             return _generate_windows_url(venmo_args.payment_amount. venmo_args.note, venmo_args.user_name, venmo_args.payment_type)
+          
         #Generates URL for iOS
         @self.router.post("/create_ios_payment", response_model=schemas.VenmoLink)
         async def generate_charge_for_ios(request: Request, venmo_args: schemas.VenmoBase):

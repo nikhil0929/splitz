@@ -32,11 +32,11 @@ account_sid = os.getenv("TWILIO_ACCOUNT_SID")
 auth_token = os.getenv("TWILIO_AUTH_TOKEN")
 service_sid = os.getenv("TWILIO_SERVICE_SID")
 
-db_user = os.getenv("DB_USER")
-db_password = os.getenv("DB_PASSWORD")
-db_host = os.getenv("DB_HOST")
-db_port = os.getenv("DB_PORT")
-db_name = os.getenv("DB_NAME")
+db_user = "local_user"
+db_password = "Love1meonly!!!!!!!!"
+db_host = "localhost"
+db_port = 5433
+db_name = "splitz"
 
 jwt_secret = os.getenv("SECRET_KEY")
 jwt_algorithm = "HS256"
@@ -48,6 +48,9 @@ s3_profile_pictures_bucket_name = os.getenv("S3_PROFILE_PICTURES_BUCKET_NAME")
 
 nanonets_url = os.getenv("NANONETS_URL")
 nanonets_api_key = os.getenv("NANONETS_API_KEY")
+
+windows_venmo_url = "https://account.venmo.com/pay"
+ios_venmo_url = "venmo://paycharge"
 
 app = FastAPI()
 
