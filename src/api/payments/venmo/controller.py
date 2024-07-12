@@ -36,4 +36,4 @@ class VenmoController:
         return f'{self.windows_venmo_url}?amount={payment_amount}&note={note}&recipients={",".join(username)}&txn={payment_type}'
     
     def _generate_ios_url(self, payment_amount: int, note:str, username: List[str], payment_type: str):
-        return f'{self.ios_venmo_url}?txn={payment_type}&recipients={payment_type}?amount={payment_amount}&note={note}&recipients={",".join(username)}&txn={payment_type}&amount={payment_amount}&note={note}&recipients={".".join(username)}&txn={payment_type}'
+        return f'{self.ios_venmo_url}?txn={payment_type}&recipients={payment_type}?amount={payment_amount}&note={note}&recipients={",".join(username)}&txn={payment_type}&amount={payment_amount}&note={note}&recipients={",".join(username)}&txn={payment_type}'
