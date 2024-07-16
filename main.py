@@ -1,4 +1,5 @@
 import os
+from src.api.payments.venmo.controller import VenmoController
 from src.api.receipt.controller import ReceiptController
 from src.api.receipt.services import ReceiptService
 from src.auth.sms_verification import TwilioAuthenticator
@@ -49,6 +50,9 @@ s3_profile_pictures_bucket_name = os.getenv("S3_PROFILE_PICTURES_BUCKET_NAME")
 nanonets_url = os.getenv("NANONETS_URL")
 nanonets_api_key = os.getenv("NANONETS_API_KEY")
 
+windows_venmo_url = "https://account.venmo.com/pay"
+ios_venmo_url = "venmo://paycharge"
+
 app = FastAPI()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -70,10 +74,11 @@ def main():
     room_service = RoomService(splitz_db, bucket_name=s3_profile_pictures_bucket_name, s3_access_key=s3_access_key, s3_secret_key=s3_secret_key)
     receipt_service = ReceiptService(splitz_db, s3_access_key, s3_secret_key, s3_receipts_bucket_name, receipt_parser)
 
-
+    venmo_controller = VenmoController(windows_venmo_url, ios_venmo_url)
     user_controller = UserController(user_service)
     room_controller = RoomController(room_service)
     receipt_controller = ReceiptController(receipt_service)
+    app.include_router(venmo_controller.router)
     app.include_router(user_controller.router)
     app.include_router(room_controller.router)
     app.include_router(receipt_controller.router)
